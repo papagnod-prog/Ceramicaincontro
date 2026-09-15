@@ -1,0 +1,39 @@
+{
+  "summary": "First-iteration end-to-end testing of Ceramica Incontro shop. Pytest suite (23 tests) covers catalog, shipping, auth, admin CRUD, checkout->Stripe, and orders — 22 pass (1 initial test assertion issue fixed: backend correctly lowercases email on register). Playwright E2E confirms home, catalog (10 products), PDP add-to-cart, cart drawer, guest checkout redirect to Stripe (real checkout.stripe.com URL), admin login/dashboard/products/orders. Order created & persisted; tracking + status update work.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/stats", "issue": "Only counts status=='processing' as 'in lavorazione' — orders that are still 'pending' (unpaid) are excluded. Consider clarifying label or including pending unpaid orders in a separate metric."},
+      {"endpoint": "/api/stripe/webhook", "issue": "'charge.refunded' handler runs a global update over ALL paid orders (no filter by payment_intent). This would mark unrelated orders as refunded if a webhook ever fires. Should filter by stripe_payment_intent_id."},
+      {"endpoint": "/api/auth/login", "issue": "Rate-limit key uses request.client.host which behind Kubernetes ingress can be the proxy IP — lockout may affect many users sharing the same egress IP."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global", "issues": ["Console shows 401 from /api/auth/me on public pages (expected: user not logged in). Consider silencing 401 in AuthContext or using a lightweight endpoint to avoid noisy console errors."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Consider filtering charge.refunded webhook by payment_intent_id (currently updates all paid orders).",
+    "Silence expected 401 from /api/auth/me on unauthenticated pages to reduce console noise."
+  ],
+  "critical_code_review_comments": [
+    "server.py at 662 lines is close to the 700-line guideline; consider splitting into routers (auth/products/checkout/admin) for maintainability.",
+    "compute_shipping is O(n) linear scan — fine for 4 options but should use dict lookup if list grows.",
+    "Stripe webhook: no idempotency check beyond {'payment_status': {'$ne': 'paid'}} — acceptable, but 'charge.refunded' handler is buggy (unfiltered).",
+    "public_user is used everywhere — good. _id is properly excluded via projection in all product/order/user queries.",
+    "CORS uses os.environ.get('CORS_ORIGINS', '*').split(',') with allow_credentials=True — if CORS_ORIGINS is unset the '*' with credentials is invalid per CORS spec. Verify CORS_ORIGINS is explicitly set in prod.",
+    "Frontend fine: data-testid attributes present across all interactive elements; Italian localization consistent."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py", "/app/backend/tests/__init__.py"],
+  "success_rate": {"backend": "100% (23/23 after adjusting one test that expected preserved email casing — backend correctly normalises to lowercase)", "frontend": "100% of tested critical flows"},
+  "test_credentials": "Admin papagno.d@gmail.com / CeramicaIncontro2026! works as expected.",
+  "seed_data_creation": "None — used existing seeded 10 products and created a few TEST_ orders/products via tests (cleanup done in CRUD test).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/backend_test.py — pytest with 23 tests covering all major endpoints. Frontend flows tested via Playwright with data-testid selectors. Google OAuth flow was NOT tested (requires external auth.emergentagent.com). Stripe payment completion was NOT tested — only redirect was verified. Admin credentials work; guest checkout works and creates order + payment_transaction records; admin can update order status/tracking.",
+  "rca of the issue": "N/A – no blocking issues found."
+}

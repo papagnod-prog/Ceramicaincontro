@@ -509,8 +509,15 @@ async def stripe_webhook(request: Request):
         await db.orders.update_one({"session_id": obj["id"]},
                                    {"$set": {"status": "cancelled", "payment_status": "expired"}})
     elif t == "charge.refunded":
-        await db.orders.update_one({"payment_status": "paid"},
-                                   {"$set": {"status": "refunded", "payment_status": "refunded"}})
+        pi = obj.get("payment_intent")
+        tx = await db.payment_transactions.find_one({"stripe_payment_intent_id": pi}, {"_id": 0})
+        if tx and tx.get("order_id"):
+            await db.payment_transactions.update_one(
+                {"stripe_payment_intent_id": pi},
+                {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": now_utc()}})
+            await db.orders.update_one(
+                {"id": tx["order_id"]},
+                {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": now_utc().isoformat()}})
     return {"status": "ok"}
 
 
