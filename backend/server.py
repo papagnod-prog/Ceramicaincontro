@@ -198,6 +198,64 @@ def _shipping_email_html(order: dict) -> str:
     return _brand_wrap(inner)
 
 
+def _sample_email_html(req: dict) -> str:
+    rows = "".join(
+        f'<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#1C1917">{escape(str(it["name"]))}</td></tr>'
+        for it in req["items"]
+    )
+    addr = req.get("shipping_address", {})
+    inner = (
+        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Richiesta campioni ricevuta</h1>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(req.get("customer", {}).get("name", "")))}, '
+        f'abbiamo ricevuto la tua richiesta di campioni gratuiti <strong>{escape(str(req["request_number"]))}</strong>. '
+        f'Ti contatteremo appena i campioni saranno pronti per la spedizione.</p>'
+        f'<table role="presentation" width="100%" style="margin:20px 0;font-size:14px">{rows}</table>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6"><strong>Spedizione a:</strong><br>'
+        f'{escape(str(addr.get("line1", "")))}<br>{escape(str(addr.get("postal_code", "")))} '
+        f'{escape(str(addr.get("city", "")))} {escape(str(addr.get("province", "")))}</p>')
+    return _brand_wrap(inner)
+
+
+def _sample_status_email_html(req: dict) -> str:
+    status = req.get("status", "")
+    label = {"shipped": "spedita", "delivered": "consegnata"}.get(status, status)
+    tracking = req.get("tracking", "")
+    track_line = (f'<p style="color:#57534E;font-size:14px">Codice tracking: <strong>{escape(str(tracking))}</strong></p>'
+                  if tracking else "")
+    inner = (
+        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">La tua richiesta campioni &egrave; stata {label}</h1>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(req.get("customer", {}).get("name", "")))}, '
+        f'la richiesta <strong>{escape(str(req["request_number"]))}</strong> risulta ora <strong>{label}</strong>.</p>'
+        f'{track_line}')
+    return _brand_wrap(inner)
+
+
+def _quote_email_html(q: dict) -> str:
+    inner = (
+        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Richiesta preventivo ricevuta</h1>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(q.get("name", "")))}, '
+        f'abbiamo ricevuto la tua richiesta di preventivo <strong>{escape(str(q["request_number"]))}</strong> per il progetto '
+        f'&ldquo;{escape(str(q.get("project_type", "")))}&rdquo;. Il nostro team tecnico la valuter&agrave; e ti risponder&agrave; a breve '
+        f'con una proposta dedicata.</p>'
+        f'<table role="presentation" width="100%" style="margin:20px 0;font-size:14px">'
+        f'<tr><td style="padding:6px 0;color:#78716C">Profilo</td><td style="padding:6px 0;text-align:right;color:#1C1917">{escape(str(q.get("profession", "")))}</td></tr>'
+        f'<tr><td style="padding:6px 0;color:#78716C">Superficie stimata</td><td style="padding:6px 0;text-align:right;color:#1C1917">{escape(str(q.get("estimated_sqm", "")))} m&sup2;</td></tr>'
+        f'<tr><td style="padding:6px 0;color:#78716C">Citt&agrave;</td><td style="padding:6px 0;text-align:right;color:#1C1917">{escape(str(q.get("city", "")))}</td></tr>'
+        f'</table>')
+    return _brand_wrap(inner)
+
+
+def _admin_notify_email_html(title: str, rows: list) -> str:
+    body = "".join(
+        f'<tr><td style="padding:6px 0;color:#78716C">{escape(str(k))}</td>'
+        f'<td style="padding:6px 0;text-align:right;color:#1C1917">{escape(str(v))}</td></tr>'
+        for k, v in rows
+    )
+    inner = (f'<h1 style="font-size:20px;color:#1C1917;margin:0 0 12px">{escape(title)}</h1>'
+             f'<table role="presentation" width="100%" style="font-size:14px">{body}</table>')
+    return _brand_wrap(inner)
+
+
 async def _safe_send(to: str, subject: str, html: str):
     try:
         await send_email(to=to, subject=subject, html=html)
@@ -213,6 +271,9 @@ logger = logging.getLogger("ceramica")
 
 def now_utc():
     return datetime.now(timezone.utc)
+
+
+MAX_SAMPLE_ITEMS = 5
 
 
 # ---------------------------------------------------------------------------
@@ -320,6 +381,42 @@ class ProductInput(BaseModel):
 class OrderStatusInput(BaseModel):
     status: str
     tracking: Optional[str] = ""
+
+
+class SampleItem(BaseModel):
+    product_id: str
+
+
+class SampleRequestInput(BaseModel):
+    items: List[SampleItem] = Field(min_length=1, max_length=MAX_SAMPLE_ITEMS)
+    customer: CustomerInfo
+    shipping_address: ShippingAddress
+    note: Optional[str] = ""
+
+
+class SampleStatusInput(BaseModel):
+    status: str
+    tracking: Optional[str] = ""
+
+
+class QuoteRequestInput(BaseModel):
+    name: str
+    email: EmailStr
+    phone: str = ""
+    company: str = ""
+    profession: str
+    city: str = ""
+    project_type: str
+    estimated_sqm: Optional[float] = Field(default=None, ge=0)
+    budget_range: Optional[str] = ""
+    message: str = ""
+    product_ids: List[str] = []
+
+
+class QuoteStatusInput(BaseModel):
+    status: str
+    quoted_amount: Optional[float] = None
+    admin_note: Optional[str] = ""
 
 
 # ---------------------------------------------------------------------------
@@ -728,12 +825,171 @@ async def admin_orders(admin: dict = Depends(require_admin), status: Optional[st
 
 @api_router.put("/admin/orders/{order_id}/status")
 async def update_order_status(order_id: str, data: OrderStatusInput, admin: dict = Depends(require_admin)):
+    before = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not before:
+        raise HTTPException(404, "Ordine non trovato")
     res = await db.orders.update_one(
         {"id": order_id},
         {"$set": {"status": data.status, "tracking": data.tracking, "updated_at": now_utc().isoformat()}})
     if res.matched_count == 0:
         raise HTTPException(404, "Ordine non trovato")
-    return await db.orders.find_one({"id": order_id}, {"_id": 0})
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    # Notify the customer by email when the order ships or is delivered, once per status.
+    sent_flag = f"{data.status}_email_sent"
+    if data.status in ("shipped", "delivered") and before.get("status") != data.status and not order.get(sent_flag) \
+            and order.get("customer", {}).get("email"):
+        await db.orders.update_one({"id": order_id}, {"$set": {sent_flag: True}})
+        label = "Spedito" if data.status == "shipped" else "Consegnato"
+        await _safe_send(order["customer"]["email"],
+                         f"Ordine {order['order_number']} — {label} — Ceramica Incontro",
+                         _shipping_email_html(order))
+        order[sent_flag] = True
+    return order
+
+
+# ---------------------------------------------------------------------------
+# Richiesta Campioni (free tile samples before purchase)
+# ---------------------------------------------------------------------------
+SAMPLE_STATUS_OPTS = ["requested", "preparing", "shipped", "delivered"]
+
+
+@api_router.post("/samples/request")
+async def request_samples(data: SampleRequestInput, request: Request):
+    seen = set()
+    items = []
+    for it in data.items:
+        if it.product_id in seen:
+            continue
+        seen.add(it.product_id)
+        p = await db.products.find_one({"id": it.product_id}, {"_id": 0})
+        if not p:
+            raise HTTPException(400, f"Prodotto {it.product_id} non trovato")
+        items.append({"product_id": p["id"], "name": p["name"], "collection": p["collection"], "image": p.get("image", "")})
+    if not items:
+        raise HTTPException(400, "Seleziona almeno un campione")
+    if len(items) > MAX_SAMPLE_ITEMS:
+        raise HTTPException(400, f"Puoi richiedere al massimo {MAX_SAMPLE_ITEMS} campioni gratuiti")
+
+    user = await resolve_user(request)
+    req_id = str(uuid.uuid4())
+    req_number = "CS-" + datetime.now().strftime("%y%m%d") + "-" + req_id[:6].upper()
+    req = {
+        "id": req_id, "request_number": req_number,
+        "user_id": user["id"] if user else None,
+        "customer": data.customer.model_dump(),
+        "shipping_address": data.shipping_address.model_dump(),
+        "note": data.note or "", "items": items,
+        "status": "requested", "tracking": "",
+        "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
+    await db.sample_requests.insert_one(req)
+
+    await _safe_send(data.customer.email,
+                     f"Richiesta campioni ricevuta {req_number} — Ceramica Incontro",
+                     _sample_email_html(req))
+    if os.environ.get("ADMIN_EMAIL"):
+        await _safe_send(os.environ["ADMIN_EMAIL"],
+                         f"Nuova richiesta campioni {req_number}",
+                         _admin_notify_email_html("Nuova richiesta campioni", [
+                             ("Numero", req_number), ("Cliente", data.customer.name),
+                             ("Email", data.customer.email), ("Telefono", data.customer.phone or "-"),
+                             ("Campioni", ", ".join(i["name"] for i in items)),
+                         ]))
+    return {"request_number": req_number, "id": req_id}
+
+
+@api_router.get("/admin/samples")
+async def admin_samples(admin: dict = Depends(require_admin), status: Optional[str] = None):
+    q = {}
+    if status and status != "all":
+        q["status"] = status
+    cursor = db.sample_requests.find(q, {"_id": 0}).sort("created_at", -1)
+    return await cursor.to_list(500)
+
+
+@api_router.put("/admin/samples/{request_id}/status")
+async def update_sample_status(request_id: str, data: SampleStatusInput, admin: dict = Depends(require_admin)):
+    if data.status not in SAMPLE_STATUS_OPTS:
+        raise HTTPException(400, "Stato non valido")
+    before = await db.sample_requests.find_one({"id": request_id}, {"_id": 0})
+    if not before:
+        raise HTTPException(404, "Richiesta non trovata")
+    await db.sample_requests.update_one(
+        {"id": request_id},
+        {"$set": {"status": data.status, "tracking": data.tracking, "updated_at": now_utc().isoformat()}})
+    req = await db.sample_requests.find_one({"id": request_id}, {"_id": 0})
+    sent_flag = f"{data.status}_email_sent"
+    if data.status in ("shipped", "delivered") and before.get("status") != data.status and not req.get(sent_flag) \
+            and req.get("customer", {}).get("email"):
+        await db.sample_requests.update_one({"id": request_id}, {"$set": {sent_flag: True}})
+        await _safe_send(req["customer"]["email"],
+                         f"Richiesta campioni {req['request_number']} — aggiornamento",
+                         _sample_status_email_html(req))
+        req[sent_flag] = True
+    return req
+
+
+# ---------------------------------------------------------------------------
+# Preventivi Progetto (custom quotes for architects/designers on large supplies)
+# ---------------------------------------------------------------------------
+QUOTE_STATUS_OPTS = ["new", "in_review", "quoted", "won", "lost"]
+
+
+@api_router.post("/quotes/request")
+async def request_quote(data: QuoteRequestInput):
+    products = []
+    for pid in data.product_ids[:20]:
+        p = await db.products.find_one({"id": pid}, {"_id": 0})
+        if p:
+            products.append({"product_id": p["id"], "name": p["name"], "collection": p["collection"]})
+
+    req_id = str(uuid.uuid4())
+    req_number = "CQ-" + datetime.now().strftime("%y%m%d") + "-" + req_id[:6].upper()
+    q = {
+        "id": req_id, "request_number": req_number,
+        "name": data.name, "email": data.email, "phone": data.phone, "company": data.company,
+        "profession": data.profession, "city": data.city, "project_type": data.project_type,
+        "estimated_sqm": data.estimated_sqm, "budget_range": data.budget_range or "",
+        "message": data.message, "products": products,
+        "status": "new", "quoted_amount": None, "admin_note": "",
+        "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
+    await db.quote_requests.insert_one(q)
+
+    await _safe_send(data.email,
+                     f"Richiesta preventivo ricevuta {req_number} — Ceramica Incontro",
+                     _quote_email_html(q))
+    if os.environ.get("ADMIN_EMAIL"):
+        await _safe_send(os.environ["ADMIN_EMAIL"],
+                         f"Nuova richiesta preventivo {req_number} ({data.profession})",
+                         _admin_notify_email_html("Nuova richiesta preventivo progetto", [
+                             ("Numero", req_number), ("Nome", data.name), ("Email", data.email),
+                             ("Telefono", data.phone or "-"), ("Azienda", data.company or "-"),
+                             ("Profilo", data.profession), ("Progetto", data.project_type),
+                             ("Città", data.city or "-"),
+                             ("Superficie stimata", f"{data.estimated_sqm} m²" if data.estimated_sqm else "-"),
+                         ]))
+    return {"request_number": req_number, "id": req_id}
+
+
+@api_router.get("/admin/quotes")
+async def admin_quotes(admin: dict = Depends(require_admin), status: Optional[str] = None):
+    q = {}
+    if status and status != "all":
+        q["status"] = status
+    cursor = db.quote_requests.find(q, {"_id": 0}).sort("created_at", -1)
+    return await cursor.to_list(500)
+
+
+@api_router.put("/admin/quotes/{quote_id}/status")
+async def update_quote_status(quote_id: str, data: QuoteStatusInput, admin: dict = Depends(require_admin)):
+    if data.status not in QUOTE_STATUS_OPTS:
+        raise HTTPException(400, "Stato non valido")
+    res = await db.quote_requests.update_one(
+        {"id": quote_id},
+        {"$set": {"status": data.status, "quoted_amount": data.quoted_amount,
+                  "admin_note": data.admin_note or "", "updated_at": now_utc().isoformat()}})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Richiesta non trovata")
+    return await db.quote_requests.find_one({"id": quote_id}, {"_id": 0})
 
 
 @api_router.get("/admin/stats")
@@ -743,8 +999,11 @@ async def admin_stats(admin: dict = Depends(require_admin)):
     total_orders = await db.orders.count_documents({})
     pending = await db.orders.count_documents({"status": "processing"})
     products = await db.products.count_documents({})
+    sample_requests = await db.sample_requests.count_documents({})
+    quote_requests = await db.quote_requests.count_documents({"status": {"$in": ["new", "in_review"]}})
     return {"revenue": revenue, "paid_orders": len(orders), "total_orders": total_orders,
-            "processing_orders": pending, "products": products}
+            "processing_orders": pending, "products": products,
+            "sample_requests": sample_requests, "open_quote_requests": quote_requests}
 
 
 # ---------------------------------------------------------------------------
@@ -826,6 +1085,8 @@ async def startup():
     await db.products.create_index("collection")
     await db.orders.create_index("user_id")
     await db.user_sessions.create_index("session_token")
+    await db.sample_requests.create_index("user_id")
+    await db.quote_requests.create_index("status")
     await seed_admin()
     await seed_products()
     logger.info("Ceramica Incontro shop ready.")

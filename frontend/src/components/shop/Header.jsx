@@ -1,13 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingBag, User, Menu, X, Search } from "lucide-react";
+import { ShoppingBag, User, Menu, X, Search, Beaker } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useSamples } from "@/context/SamplesContext";
 import { useAuth } from "@/context/AuthContext";
 
 const COLLECTIONS = ["SMUSSO", "Battiscopa", "Moon Spots", "Paper Glass", "Stony"];
 
 export const Header = () => {
   const { count, setOpen } = useCart();
+  const { count: sampleCount } = useSamples();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -44,9 +46,32 @@ export const Header = () => {
                 {c}
               </Link>
             ))}
+            <Link
+              to="/preventivo-progetto"
+              data-testid="nav-quote-link"
+              className="text-sm font-medium text-[#C05A3E] hover:text-[#A64B32] ci-link-underline transition-colors"
+            >
+              Preventivi Progetto
+            </Link>
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-3">
+            <button
+              data-testid="samples-trigger"
+              onClick={() => navigate("/campioni")}
+              className="relative p-2.5 rounded-full hover:bg-[#F1EEE8] transition-colors"
+              aria-label="Campioni gratuiti"
+            >
+              <Beaker className="w-5 h-5 text-[#1C1917]" />
+              {sampleCount > 0 && (
+                <span
+                  data-testid="samples-count-badge"
+                  className="absolute -top-0.5 -right-0.5 bg-[#C05A3E] text-white text-[0.65rem] font-semibold w-5 h-5 rounded-full flex items-center justify-center"
+                >
+                  {sampleCount}
+                </span>
+              )}
+            </button>
             <form onSubmit={submitSearch} className="hidden md:flex items-center relative">
               <Search className="w-4 h-4 absolute left-3 text-[#78716C]" />
               <input
@@ -114,6 +139,12 @@ export const Header = () => {
               {c}
             </Link>
           ))}
+          <Link to="/campioni" onClick={() => setMobileOpen(false)} className="block py-2 text-[#1C1917] font-medium">
+            Campioni gratuiti
+          </Link>
+          <Link to="/preventivo-progetto" onClick={() => setMobileOpen(false)} className="block py-2 text-[#C05A3E] font-medium">
+            Preventivi Progetto
+          </Link>
         </div>
       )}
     </header>

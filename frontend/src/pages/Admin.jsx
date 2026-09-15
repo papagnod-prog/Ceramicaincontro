@@ -4,7 +4,7 @@ import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft,
+  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -14,6 +14,17 @@ const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "cancelled
 const STATUS_LABEL = {
   pending: "In attesa", processing: "In lavorazione", shipped: "Spedito",
   delivered: "Consegnato", cancelled: "Annullato", refunded: "Rimborsato",
+};
+
+const SAMPLE_STATUS_OPTS = ["requested", "preparing", "shipped", "delivered"];
+const SAMPLE_STATUS_LABEL = {
+  requested: "Richiesto", preparing: "In preparazione", shipped: "Spedito", delivered: "Consegnato",
+};
+
+const QUOTE_STATUS_OPTS = ["new", "in_review", "quoted", "won", "lost"];
+const QUOTE_STATUS_LABEL = {
+  new: "Nuovo", in_review: "In valutazione", quoted: "Preventivo inviato",
+  won: "Vinto", lost: "Perso",
 };
 
 const EMPTY_PRODUCT = {
@@ -28,6 +39,8 @@ export default function Admin() {
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [samples, setSamples] = useState([]);
+  const [quotes, setQuotes] = useState([]);
   const [editing, setEditing] = useState(null); // product being edited or null
   const [form, setForm] = useState(EMPTY_PRODUCT);
 
@@ -39,6 +52,8 @@ export default function Admin() {
     api.get("/admin/stats").then(({ data }) => setStats(data)).catch(() => {});
     api.get("/products").then(({ data }) => setProducts(data));
     api.get("/admin/orders").then(({ data }) => setOrders(data)).catch(() => {});
+    api.get("/admin/samples").then(({ data }) => setSamples(data)).catch(() => {});
+    api.get("/admin/quotes").then(({ data }) => setQuotes(data)).catch(() => {});
   };
   useEffect(() => {
     if (user?.role === "admin") loadAll();
@@ -96,6 +111,28 @@ export default function Admin() {
     loadAll();
   };
 
+  const updateSampleStatus = async (req, status) => {
+    await api.put(`/admin/samples/${req.id}/status`, { status, tracking: req.tracking || "" });
+    toast.success("Stato campione aggiornato");
+    loadAll();
+  };
+  const updateSampleTracking = async (req, tracking) => {
+    await api.put(`/admin/samples/${req.id}/status`, { status: req.status, tracking });
+    toast.success("Tracking campione salvato");
+    loadAll();
+  };
+
+  const updateQuoteStatus = async (q, status) => {
+    await api.put(`/admin/quotes/${q.id}/status`, { status, quoted_amount: q.quoted_amount, admin_note: q.admin_note || "" });
+    toast.success("Stato preventivo aggiornato");
+    loadAll();
+  };
+  const updateQuoteAmount = async (q, quoted_amount) => {
+    await api.put(`/admin/quotes/${q.id}/status`, { status: q.status, quoted_amount: quoted_amount ? parseFloat(quoted_amount) : null, admin_note: q.admin_note || "" });
+    toast.success("Importo preventivo salvato");
+    loadAll();
+  };
+
   const inputCls = "w-full bg-white border border-[#E2DDD5] px-3 py-2 focus:outline-none focus:border-[#C05A3E] text-sm";
 
   return (
@@ -110,6 +147,8 @@ export default function Admin() {
           ["dashboard", "Dashboard", LayoutGrid],
           ["products", "Prodotti", Package],
           ["orders", "Ordini", ClipboardList],
+          ["samples", "Campioni", Beaker],
+          ["quotes", "Preventivi", FileText],
         ].map(([k, label, Icon]) => (
           <button
             key={k}
@@ -132,6 +171,8 @@ export default function Admin() {
             ["Ordini pagati", stats.paid_orders],
             ["In lavorazione", stats.processing_orders],
             ["Prodotti a catalogo", stats.products],
+            ["Richieste campioni", stats.sample_requests ?? 0],
+            ["Preventivi aperti", stats.open_quote_requests ?? 0],
           ].map(([label, val]) => (
             <div key={label} className="bg-white border border-[#E2DDD5] p-6">
               <p className="eyebrow mb-2">{label}</p>
@@ -233,6 +274,111 @@ export default function Admin() {
             </tbody>
           </table>
           {orders.length === 0 && <div className="p-10 text-center text-[#78716C]">Nessun ordine.</div>}
+        </div>
+      )}
+
+      {/* Samples */}
+      {tab === "samples" && (
+        <div className="overflow-x-auto bg-white border border-[#E2DDD5]">
+          <table data-testid="admin-sample-table" className="w-full text-sm">
+            <thead className="bg-[#F1EEE8] text-left">
+              <tr>
+                <th className="px-4 py-3 font-medium">Richiesta</th>
+                <th className="px-4 py-3 font-medium">Cliente</th>
+                <th className="px-4 py-3 font-medium">Campioni</th>
+                <th className="px-4 py-3 font-medium">Stato</th>
+                <th className="px-4 py-3 font-medium">Tracking</th>
+              </tr>
+            </thead>
+            <tbody>
+              {samples.map((s) => (
+                <tr key={s.id} className="border-t border-[#E2DDD5]">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{s.request_number}</div>
+                    <div className="text-xs text-[#78716C]">{new Date(s.created_at).toLocaleDateString("it-IT")}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div>{s.customer?.name}</div>
+                    <div className="text-xs text-[#78716C]">{s.customer?.email}</div>
+                  </td>
+                  <td className="px-4 py-3 text-[#78716C]">
+                    {(s.items || []).map((it) => it.name).join(", ")}
+                  </td>
+                  <td className="px-4 py-3 min-w-[160px]">
+                    <Select value={s.status} onValueChange={(v) => updateSampleStatus(s, v)}>
+                      <SelectTrigger data-testid={`sample-status-${s.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {SAMPLE_STATUS_OPTS.map((st) => (<SelectItem key={st} value={st}>{SAMPLE_STATUS_LABEL[st]}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      defaultValue={s.tracking}
+                      placeholder="Cod. tracking"
+                      onBlur={(e) => { if (e.target.value !== s.tracking) updateSampleTracking(s, e.target.value); }}
+                      className="border border-[#E2DDD5] px-2 py-1.5 w-32 text-xs focus:outline-none focus:border-[#C05A3E]"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {samples.length === 0 && <div className="p-10 text-center text-[#78716C]">Nessuna richiesta campioni.</div>}
+        </div>
+      )}
+
+      {/* Quotes */}
+      {tab === "quotes" && (
+        <div className="overflow-x-auto bg-white border border-[#E2DDD5]">
+          <table data-testid="admin-quote-table" className="w-full text-sm">
+            <thead className="bg-[#F1EEE8] text-left">
+              <tr>
+                <th className="px-4 py-3 font-medium">Richiesta</th>
+                <th className="px-4 py-3 font-medium">Cliente</th>
+                <th className="px-4 py-3 font-medium">Progetto</th>
+                <th className="px-4 py-3 font-medium">Superficie</th>
+                <th className="px-4 py-3 font-medium">Stato</th>
+                <th className="px-4 py-3 font-medium">Importo (€)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quotes.map((q) => (
+                <tr key={q.id} className="border-t border-[#E2DDD5]">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{q.request_number}</div>
+                    <div className="text-xs text-[#78716C]">{new Date(q.created_at).toLocaleDateString("it-IT")}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div>{q.customer?.name}{q.customer?.company ? ` · ${q.customer.company}` : ""}</div>
+                    <div className="text-xs text-[#78716C]">{q.customer?.email}</div>
+                    <div className="text-xs text-[#78716C]">{q.customer?.profession}</div>
+                  </td>
+                  <td className="px-4 py-3 text-[#78716C]">{q.project_type}</td>
+                  <td className="px-4 py-3 text-[#78716C]">{q.sqm ? `${q.sqm} m²` : "-"}</td>
+                  <td className="px-4 py-3 min-w-[170px]">
+                    <Select value={q.status} onValueChange={(v) => updateQuoteStatus(q, v)}>
+                      <SelectTrigger data-testid={`quote-status-${q.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {QUOTE_STATUS_OPTS.map((st) => (<SelectItem key={st} value={st}>{QUOTE_STATUS_LABEL[st]}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="number"
+                      step="0.01"
+                      defaultValue={q.quoted_amount ?? ""}
+                      placeholder="0.00"
+                      onBlur={(e) => { if (e.target.value !== String(q.quoted_amount ?? "")) updateQuoteAmount(q, e.target.value); }}
+                      className="border border-[#E2DDD5] px-2 py-1.5 w-24 text-xs focus:outline-none focus:border-[#C05A3E]"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {quotes.length === 0 && <div className="p-10 text-center text-[#78716C]">Nessun preventivo richiesto.</div>}
         </div>
       )}
 

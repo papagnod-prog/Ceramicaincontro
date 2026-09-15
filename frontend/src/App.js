@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+import { SamplesProvider } from "@/context/SamplesContext";
 import { Header } from "@/components/shop/Header";
 import { Footer } from "@/components/shop/Footer";
 import { CartDrawer } from "@/components/shop/CartDrawer";
@@ -16,6 +17,8 @@ import Checkout from "@/pages/Checkout";
 import { PaymentSuccess, PaymentCancel } from "@/pages/PaymentStatus";
 import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
+import Samples from "@/pages/Samples";
+import QuoteRequest from "@/pages/QuoteRequest";
 
 function Shell() {
   const location = useLocation();
@@ -41,6 +44,8 @@ function Shell() {
           <Route path="/payment/cancel" element={<PaymentCancel />} />
           <Route path="/account" element={<Account />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/campioni" element={<Samples />} />
+          <Route path="/preventivo-progetto" element={<QuoteRequest />} />
         </Routes>
       </main>
       <Footer />
@@ -53,8 +58,10 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
-          <Shell />
-          <Toaster position="top-center" richColors />
+          <SamplesProvider>
+            <Shell />
+            <Toaster position="top-center" richColors />
+          </SamplesProvider>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>

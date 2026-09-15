@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 export const Footer = () => (
   <footer className="bg-[#1C1917] text-[#F8F6F2] mt-24">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-10">
         <div className="md:col-span-2">
           <div className="font-serif-display text-3xl mb-3">Ceramica Incontro</div>
           <p className="text-[#A8A29E] text-sm max-w-sm leading-relaxed">
@@ -25,16 +25,27 @@ export const Footer = () => (
           </ul>
         </div>
         <div>
-          <h4 className="eyebrow mb-4 text-[#78716C]">Contatti</h4>
+          <h4 className="eyebrow mb-4 text-[#78716C]">Servizi</h4>
           <ul className="space-y-2 text-sm text-[#D6D3D1]">
-            <li>Sassuolo (MO), Italia</li>
-            <li>info@ceramicaincontro.it</li>
+            <li>
+              <Link to="/campioni" className="hover:text-white transition-colors">Campioni gratuiti</Link>
+            </li>
+            <li>
+              <Link to="/preventivo-progetto" className="hover:text-white transition-colors">Preventivi Progetto</Link>
+            </li>
             <li>
               <Link to="/negozio" className="hover:text-white transition-colors">Negozio</Link>
             </li>
             <li>
               <Link to="/account" className="hover:text-white transition-colors">Il mio account</Link>
             </li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="eyebrow mb-4 text-[#78716C]">Contatti</h4>
+          <ul className="space-y-2 text-sm text-[#D6D3D1]">
+            <li>Sassuolo (MO), Italia</li>
+            <li>info@ceramicaincontro.it</li>
           </ul>
         </div>
       </div>

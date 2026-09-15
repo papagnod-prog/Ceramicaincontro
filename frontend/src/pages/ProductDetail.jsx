@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api, { eur } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
-import { Minus, Plus, ArrowLeft, Check } from "lucide-react";
+import { useSamples, MAX_SAMPLES } from "@/context/SamplesContext";
+import { Minus, Plus, ArrowLeft, Check, Beaker } from "lucide-react";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const { addItem } = useCart();
+  const { addSample, items: sampleItems } = useSamples();
   const [product, setProduct] = useState(null);
   const [qty, setQty] = useState(1);
   const [area, setArea] = useState("");
@@ -116,6 +118,22 @@ export default function ProductDetail() {
           <div className="mt-6 flex items-center gap-2 text-sm text-[#6B7A6E]">
             <Check className="w-4 h-4" /> Disponibile · spedizione in tutta Italia
           </div>
+
+          <button
+            data-testid="pdp-request-sample-btn"
+            onClick={() => addSample(product)}
+            disabled={sampleItems?.some((i) => i.product_id === product.id)}
+            className="mt-4 inline-flex items-center gap-2 border border-[#1C1917] text-[#1C1917] px-5 py-3 text-sm font-medium hover:bg-[#1C1917] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Beaker className="w-4 h-4" />
+            {sampleItems?.some((i) => i.product_id === product.id)
+              ? "Campione già richiesto"
+              : "Richiedi campione gratuito"}
+          </button>
+          <p className="text-xs text-[#78716C] mt-2">
+            Prova prima l'acquisto: campioni gratuiti fino a {MAX_SAMPLES} prodotti,{" "}
+            <Link to="/campioni" className="underline hover:text-[#C05A3E]">vai al carrello campioni</Link>.
+          </p>
 
           {/* Specs */}
           <div className="mt-10 border-t border-[#E2DDD5] pt-8">
