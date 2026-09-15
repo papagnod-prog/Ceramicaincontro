@@ -1,0 +1,176 @@
+{
+  "project_info": {
+    "brand_name": "Ceramica Incontro",
+    "tagline": "Italian Ceramic Craftsmanship & Architectural Profiles Since 1976",
+    "sub_brand": "fittile_",
+    "app_type": "e-commerce",
+    "domain": "ceramicaincontro.it",
+    "origin": "Sassuolo, Italy",
+    "primary_collections": [
+      "SMUSSO (7cm, 30° architectural bevel skirting)",
+      "Moon Spots (9x60cm retractable cut ceramic modules)",
+      "Battiscopa (33cm, 45cm, 60cm & 8x33cm skirting boards)",
+      "Paper Glass (Translucent glazed wall tiles)",
+      "Stony (Natural stone-effect porcelain stoneware)"
+    ]
+  },
+  "theme": {
+    "default": "light",
+    "toggle_supported": true,
+    "rationale": "Ceramic and architectural materials are best represented in warm natural light, travertine tones, and stone textures with airy whitespace."
+  },
+  "typography": {
+    "headline_font": "Cormorant Garamond, Playfair Display, serif",
+    "body_font": "Manrope, Work Sans, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight leading-tight",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-normal tracking-tight",
+      "h3": "text-xl sm:text-2xl font-medium tracking-normal",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base text-stone-700 leading-relaxed",
+      "caption": "text-xs sm:text-sm uppercase tracking-[0.2em] font-semibold text-stone-500"
+    },
+    "pairing_archetype": "The Editorial Architect (High-end Italian Design Studio)"
+  },
+  "colors": {
+    "archetype": "ORGANIC & EARTHY / ARCHITECTURAL LUXURY",
+    "palette": {
+      "background": "#F8F6F2",
+      "surface": "#FFFFFF",
+      "surface_subtle": "#F1EEE8",
+      "border": "#E2DDD5",
+      "border_dark": "#2A2825",
+      "text_primary": "#1C1917",
+      "text_secondary": "#57534E",
+      "text_muted": "#78716C",
+      "accent_terracotta": "#C05A3E",
+      "accent_terracotta_hover": "#A64B32",
+      "accent_stone": "#8C8275",
+      "accent_sage": "#6B7A6E",
+      "dark_surface": "#1C1917",
+      "dark_text": "#F8F6F2"
+    },
+    "rules": [
+      "Never use pure black #000000; use warm charcoal #1C1917",
+      "Primary CTA buttons must use accent_terracotta (#C05A3E) or dark_surface (#1C1917)",
+      "Containers with borders must have internal padding p-6 or p-8 to prevent text collision",
+      "Text over images must use gradient overlays (e.g. from-black/60 via-black/30 to-transparent) or semi-transparent cards"
+    ]
+  },
+  "grids_and_layout": {
+    "strategy": "Swiss Architectural Bento Grid + Editorial Spacing",
+    "header": "Sticky glassmorphism navigation (backdrop-blur-md bg-white/80 border-b border-stone-200/60 z-50)",
+    "container_max_width": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "hero_section": "Asymmetric 2-column or full-screen architectural layout with high-impact product close-ups and sub-brand 'fittile_' accent tag",
+    "bento_grid": "grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8",
+    "spacing_scale": "p-4, p-6, p-8, p-12, p-16, p-24"
+  },
+  "image_urls": [
+    {
+      "category": "Hero / Featured Architectural Interior",
+      "url": "https://images.unsplash.com/photo-1763485956232-45c74e1e8610?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "usage": "Main shop hero section, architectural tile context"
+    },
+    {
+      "category": "Collection - Stony / Natural Stone",
+      "url": "https://images.unsplash.com/photo-1763485955425-a61e722832ca?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "usage": "Stony Collection banner and product detail page showcase"
+    },
+    {
+      "category": "Collection - Moon Spots / Wall Modules",
+      "url": "https://images.unsplash.com/photo-1512119706465-5f60cf4d3e2d?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "usage": "Moon Spots series texture display"
+    },
+    {
+      "category": "Collection - Terracotta Craftsmanship",
+      "url": "https://images.unsplash.com/photo-1710762797203-707c26233cee?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "usage": "Traditional Terracotta and modern skirting integration"
+    },
+    {
+      "category": "Material Texture - Stone & Terracotta",
+      "url": "https://images.unsplash.com/photo-1673731535556-665e8b8041fe?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "usage": "Sample swatch request section & material close-up"
+    },
+    {
+      "category": "Architectural Minimalist Facade",
+      "url": "https://images.unsplash.com/photo-1489272889853-8093472c6f42?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "usage": "fittile_ design studio collaboration spotlight"
+    }
+  ],
+  "key_components_to_build": [
+    {
+      "name": "Header & Navigation Bar",
+      "details": "Brand logo 'Ceramica Incontro' + 'fittile_' badge, categories dropdown (Battiscopa, SMUSSO, Moon Spots, Paper Glass, Stony), currency selector (EUR), Search bar, Cart Drawer trigger with item count badge, User Account / Login trigger.",
+      "test_ids": {
+        "nav_bar": "header-nav-bar",
+        "cart_trigger": "cart-drawer-trigger",
+        "account_trigger": "user-account-trigger",
+        "category_link": "nav-category-link"
+      }
+    },
+    {
+      "name": "Product Catalog & Filters",
+      "details": "Grid display with view switcher (Grid/List), filters by Collection, Finish (Matt/Polished), Format (33cm, 45cm, 60cm, 9x60cm, 8x33cm), Color, Price, and Usage (Wall/Floor/Skirting). Square/m² price calculator included.",
+      "test_ids": {
+        "product_grid": "product-catalog-grid",
+        "filter_collection": "filter-collection-select",
+        "product_card": "product-card-item",
+        "sqm_calculator": "square-meter-calculator"
+      }
+    },
+    {
+      "name": "Product Detail Page (PDP)",
+      "details": "High-res gallery with zoom, technical specs sheet (thickness, box coverage m²/linear meters, anti-slip rating), m² and box coverage calculator, sample request modal, add to cart button, shipping estimator based on weight/pallets.",
+      "test_ids": {
+        "pdp_title": "pdp-product-title",
+        "pdp_add_to_cart": "pdp-add-to-cart-btn",
+        "pdp_sample_btn": "pdp-request-sample-btn",
+        "pdp_calculator": "pdp-quantity-calculator"
+      }
+    },
+    {
+      "name": "Shopping Cart & Slide-Over Drawer",
+      "details": "Real-time weight and pallet calculation, shipping cost breakdown based on weight/destination (Italy/EU), free sample indicator, direct Stripe checkout trigger.",
+      "test_ids": {
+        "cart_drawer": "shopping-cart-drawer",
+        "cart_item": "cart-item-row",
+        "checkout_btn": "cart-checkout-button"
+      }
+    },
+    {
+      "name": "Stripe & Express Checkout Flow",
+      "details": "Multi-step or accordion checkout: Customer Info / Auth, Delivery Address (with VAT/Codice Fiscale for Italian invoicing), Shipping Option selection (Standard Freight, Express Courier, Pallet Express, Factory Pickup in Sassuolo), Stripe Payment Element.",
+      "test_ids": {
+        "checkout_form": "checkout-shipping-form",
+        "payment_element": "stripe-payment-element",
+        "place_order_btn": "checkout-place-order-btn"
+      }
+    },
+    {
+      "name": "Customer Account & Order History",
+      "details": "Orders list, downloadable PDF invoices, shipment tracking status, saved shipping/billing addresses, quote requests for architectural projects.",
+      "test_ids": {
+        "account_dashboard": "customer-account-dashboard",
+        "order_item": "customer-order-item",
+        "download_invoice_btn": "order-download-invoice-btn"
+      }
+    },
+    {
+      "name": "Admin Panel (Management)",
+      "details": "Dashboard for product CRUD, inventory control (boxes/m²), order fulfillment status update, shipping rules & weight rates setup, customer VAT management.",
+      "test_ids": {
+        "admin_nav": "admin-navigation-bar",
+        "product_management": "admin-product-table",
+        "order_management": "admin-order-table"
+      }
+    }
+  ],
+  "instructions_to_main_agent": [
+    "Use JavaScript (.js / .jsx) components as configured in the workspace.",
+    "Ensure all interactive buttons, inputs, links, and cards include explicit data-testid attributes according to testing conventions.",
+    "Implement full mock or real integration for Stripe payment checkout.",
+    "Maintain high aesthetic standards: generous whitespace, elegant serif titles, subtle stone/terracotta accents, crisp 1px borders.",
+    "Do NOT use transparent backgrounds on dropdowns, modals, or fixed headers without appropriate background fill or heavy backdrop-blur."
+  ]
+}
