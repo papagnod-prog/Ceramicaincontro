@@ -17,6 +17,11 @@ import bcrypt
 import jwt
 import stripe
 import httpx
+import re
+import ipaddress
+from html import escape
+from html.parser import HTMLParser
+from urllib.parse import urlparse
 from datetime import datetime, timezone, timedelta
 
 # ---------------------------------------------------------------------------
@@ -31,6 +36,173 @@ JWT_ALGORITHM = "HS256"
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+# ---------------------------------------------------------------------------
+# Email (Emergent-managed Resend)
+# ---------------------------------------------------------------------------
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ceramica Incontro")
+EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
+
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
+             "send us your password", "enter your password below", "confirm your card number",
+             "your full card number", "seed phrase", "recovery phrase", "verify your card",
+             "social security number", "confirm your bank details")
+_HOSTISH = re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", re.I)
+
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan()
+    scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks the recipient for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links/assets must be absolute https: {url!r} (G3)")
+        host = urlparse(low).hostname or ""
+        if not _host_ok(host) or urlparse(low).username is not None:
+            raise ValueError(f"Shortened, numeric-host or credential-bearing URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} != real link host {real!r} (G3)")
+
+
+async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+    if not EMAIL_KEY:
+        logger.warning("EMERGENT_EMAIL_KEY not set — skipping email send")
+        return None
+    _assert_safe_email(subject, html)
+    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    if EMAIL_REPLY_TO:
+        payload["contact_email"] = EMAIL_REPLY_TO
+    async with httpx.AsyncClient(timeout=30) as http:
+        resp = await http.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
+                               headers={"X-Email-Key": EMAIL_KEY}, json=payload)
+    resp.raise_for_status()
+    return resp.json().get("id")
+
+
+def _brand_wrap(inner: str) -> str:
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="background:#F8F6F2;padding:32px 0;font-family:Arial,Helvetica,sans-serif">'
+        '<tr><td align="center"><table role="presentation" width="560" cellpadding="0" cellspacing="0" '
+        'style="background:#ffffff;border:1px solid #E2DDD5">'
+        '<tr><td style="background:#1C1917;padding:24px 32px">'
+        '<div style="color:#F8F6F2;font-size:22px;letter-spacing:0.5px">Ceramica Incontro</div>'
+        '<div style="color:#C05A3E;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:4px">fittile_ · dal 1976</div>'
+        '</td></tr>'
+        f'<tr><td style="padding:32px">{inner}</td></tr>'
+        '<tr><td style="padding:20px 32px;border-top:1px solid #E2DDD5;color:#78716C;font-size:12px">'
+        'Ceramica Incontro S.r.l. — Sassuolo (MO), Italia.<br>'
+        'Non chiediamo mai password o dati della carta via email.'
+        '</td></tr></table></td></tr></table>')
+
+
+def _order_email_html(order: dict) -> str:
+    rows = ""
+    for it in order["items"]:
+        rows += (f'<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#1C1917">'
+                 f'{escape(str(it["name"]))} &times; {it["quantity"]}</td>'
+                 f'<td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;color:#1C1917">'
+                 f'&euro; {it["price"] * it["quantity"]:.2f}</td></tr>')
+    addr = order.get("shipping_address", {})
+    ship = order.get("shipping_option", {})
+    account_url = f"{FRONTEND_URL}/account"
+    inner = (
+        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Grazie per il tuo ordine!</h1>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(order.get("customer", {}).get("name", "")))}, '
+        f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong> e il pagamento &egrave; stato confermato.</p>'
+        f'<table role="presentation" width="100%" style="margin:20px 0;font-size:14px">{rows}'
+        f'<tr><td style="padding:8px 0;color:#78716C">Spedizione ({escape(str(ship.get("name", "")))})</td>'
+        f'<td style="padding:8px 0;text-align:right;color:#78716C">&euro; {order.get("shipping_cost", 0):.2f}</td></tr>'
+        f'<tr><td style="padding:10px 0;font-weight:bold;color:#1C1917">Totale</td>'
+        f'<td style="padding:10px 0;text-align:right;font-weight:bold;color:#1C1917">&euro; {order.get("total", 0):.2f}</td></tr>'
+        f'</table>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6"><strong>Spedizione a:</strong><br>'
+        f'{escape(str(addr.get("line1", "")))}<br>{escape(str(addr.get("postal_code", "")))} '
+        f'{escape(str(addr.get("city", "")))} {escape(str(addr.get("province", "")))}</p>'
+        f'<p style="margin:24px 0"><a href="{account_url}" '
+        f'style="background:#C05A3E;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
+        f'Vedi i tuoi ordini</a></p>')
+    return _brand_wrap(inner)
+
+
+def _shipping_email_html(order: dict) -> str:
+    tracking = order.get("tracking", "")
+    status = order.get("status", "")
+    label = "spedito" if status == "shipped" else "consegnato"
+    account_url = f"{FRONTEND_URL}/account"
+    track_line = (f'<p style="color:#57534E;font-size:14px">Codice tracking: <strong>{escape(str(tracking))}</strong></p>'
+                  if tracking else "")
+    inner = (
+        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Il tuo ordine &egrave; stato {label}</h1>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(order.get("customer", {}).get("name", "")))}, '
+        f'l&rsquo;ordine <strong>{escape(str(order["order_number"]))}</strong> risulta ora <strong>{label}</strong>.</p>'
+        f'{track_line}'
+        f'<p style="margin:24px 0"><a href="{account_url}" '
+        f'style="background:#1C1917;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
+        f'Segui l&rsquo;ordine</a></p>')
+    return _brand_wrap(inner)
+
+
+async def _safe_send(to: str, subject: str, html: str):
+    try:
+        await send_email(to=to, subject=subject, html=html)
+    except Exception as e:
+        logger.error(f"Email non inviata a {to}: {e}")
 
 app = FastAPI(title="Ceramica Incontro Shop API")
 api_router = APIRouter(prefix="/api")
@@ -470,9 +642,16 @@ async def _mark_paid(session_id: str, payment_intent=None):
         {"session_id": session_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"status": "completed", "payment_status": "paid",
                   "stripe_payment_intent_id": payment_intent, "updated_at": now_utc()}})
-    await db.orders.update_one(
+    res = await db.orders.update_one(
         {"session_id": session_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"payment_status": "paid", "status": "processing", "updated_at": now_utc().isoformat()}})
+    if res.modified_count:
+        order = await db.orders.find_one({"session_id": session_id}, {"_id": 0})
+        if order and not order.get("email_sent"):
+            await db.orders.update_one({"id": order["id"]}, {"$set": {"email_sent": True}})
+            await _safe_send(order["customer"]["email"],
+                             f"Ordine confermato {order['order_number']} — Ceramica Incontro",
+                             _order_email_html(order))
 
 
 @api_router.get("/payments/status/{session_id}")
