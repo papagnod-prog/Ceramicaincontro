@@ -305,6 +305,81 @@ def compute_shipping(weight_kg: float, subtotal: float, option_id: str) -> float
 
 
 # ---------------------------------------------------------------------------
+# Regional shipping rates (region x weight-bracket x collection), admin-managed
+# ---------------------------------------------------------------------------
+ITALIAN_REGIONS = [
+    "Abruzzo", "Basilicata", "Calabria", "Campania", "Emilia-Romagna",
+    "Friuli-Venezia Giulia", "Lazio", "Liguria", "Lombardia", "Marche",
+    "Molise", "Piemonte", "Puglia", "Sardegna", "Sicilia", "Toscana",
+    "Trentino-Alto Adige", "Umbria", "Valle d'Aosta", "Veneto",
+]
+
+DEFAULT_UNLOADING_SERVICE_PRICE = 0.0
+UNLOADING_SERVICE_SETTINGS_ID = "unloading_service"
+
+
+class WeightBracketInput(BaseModel):
+    label: str
+    min_kg: float = Field(ge=0)
+    max_kg: Optional[float] = None  # None = "oltre" / senza limite superiore
+    order: int = 0
+
+
+class ShippingRateInput(BaseModel):
+    shipping_option_id: str
+    region: str
+    collection: str
+    weight_bracket_id: str
+    price: float = Field(ge=0)
+
+
+class UnloadingServiceInput(BaseModel):
+    price: float = Field(ge=0)
+    label: str = "Servizio di scarico (sponda idraulica + trans pallet)"
+
+
+def _find_bracket_for_weight(brackets: List[dict], weight_kg: float) -> Optional[dict]:
+    for b in sorted(brackets, key=lambda x: x["min_kg"]):
+        if weight_kg >= b["min_kg"] and (b["max_kg"] is None or weight_kg <= b["max_kg"]):
+            return b
+    return None
+
+
+async def compute_regional_shipping(shipping_option_id: str, region: str, lines: List[dict]):
+    """Groups cart lines by collection, resolves a rate per collection group using
+    region + weight-bracket + collection, and sums the results.
+    Returns (total_cost, breakdown, all_available)."""
+    brackets = await db.shipping_weight_brackets.find({}, {"_id": 0}).to_list(200)
+    by_collection: dict = {}
+    for ln in lines:
+        c = ln.get("collection", "")
+        by_collection.setdefault(c, 0.0)
+        by_collection[c] += ln.get("weight_kg", 0) * ln.get("quantity", 1)
+
+    breakdown = []
+    total = 0.0
+    all_available = True
+    for collection, weight in by_collection.items():
+        bracket = _find_bracket_for_weight(brackets, weight)
+        entry = {"collection": collection, "weight_kg": round(weight, 2),
+                  "bracket_id": bracket["id"] if bracket else None,
+                  "bracket_label": bracket["label"] if bracket else None,
+                  "available": False, "price": 0.0}
+        if bracket:
+            rate = await db.shipping_rates.find_one(
+                {"shipping_option_id": shipping_option_id, "region": region,
+                 "collection": collection, "weight_bracket_id": bracket["id"]}, {"_id": 0})
+            if rate:
+                entry["available"] = True
+                entry["price"] = rate["price"]
+                total += rate["price"]
+        if not entry["available"]:
+            all_available = False
+        breakdown.append(entry)
+    return round(total, 2), breakdown, all_available
+
+
+# ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
 class RegisterInput(BaseModel):
@@ -330,6 +405,8 @@ class CartItem(BaseModel):
 class QuoteInput(BaseModel):
     items: List[CartItem]
     shipping_option_id: str
+    region: Optional[str] = None
+    unloading_service: bool = False
 
 
 class CustomerInfo(BaseModel):
@@ -343,6 +420,7 @@ class ShippingAddress(BaseModel):
     city: str
     postal_code: str
     province: str = ""
+    region: str = ""
     country: str = "IT"
 
 
@@ -359,6 +437,7 @@ class CheckoutInput(BaseModel):
     shipping_address: ShippingAddress
     billing: Optional[BillingInfo] = None
     origin_url: str
+    unloading_service: bool = False
 
 
 class ProductInput(BaseModel):
@@ -649,6 +728,25 @@ async def shipping_options():
     return SHIPPING_OPTIONS
 
 
+@api_router.get("/shipping/regions")
+async def shipping_regions():
+    return ITALIAN_REGIONS
+
+
+@api_router.get("/shipping/weight-brackets")
+async def shipping_weight_brackets_public():
+    return await db.shipping_weight_brackets.find({}, {"_id": 0}).sort("min_kg", 1).to_list(200)
+
+
+@api_router.get("/shipping/unloading-service")
+async def shipping_unloading_service_public():
+    doc = await db.shipping_settings.find_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"_id": 0})
+    if not doc:
+        return {"price": DEFAULT_UNLOADING_SERVICE_PRICE,
+                "label": "Servizio di scarico (sponda idraulica + trans pallet)"}
+    return doc
+
+
 async def _price_cart(items: List[CartItem]):
     subtotal = 0.0
     weight = 0.0
@@ -666,12 +764,125 @@ async def _price_cart(items: List[CartItem]):
     return round(subtotal, 2), round(weight, 2), lines
 
 
+async def _quote_shipping(shipping_option_id: str, region: Optional[str], unloading_service: bool,
+                           subtotal: float, weight: float, lines: List[dict]):
+    """Full shipping quote: region+weight+collection matrix, with fallback contact info
+    when a rate is missing, plus optional unloading service surcharge (pallet)."""
+    contact_email = EMAIL_REPLY_TO or os.environ.get("ADMIN_EMAIL", "")
+    if not region:
+        return {"available": False, "shipping_cost": 0.0, "breakdown": [],
+                "contact_email": contact_email,
+                "message": "Seleziona la tua regione per calcolare la spedizione."}
+
+    cost, breakdown, available = await compute_regional_shipping(shipping_option_id, region, lines)
+
+    unloading_price = 0.0
+    if unloading_service:
+        settings = await db.shipping_settings.find_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"_id": 0})
+        unloading_price = settings["price"] if settings else DEFAULT_UNLOADING_SERVICE_PRICE
+        cost = round(cost + unloading_price, 2)
+
+    opt = next((o for o in SHIPPING_OPTIONS if o["id"] == shipping_option_id), None)
+    if opt and opt.get("free_over") is not None and subtotal >= opt["free_over"]:
+        cost = round(unloading_price, 2)
+
+    result = {"available": available, "shipping_cost": cost if available else 0.0,
+              "breakdown": breakdown, "unloading_service_price": unloading_price}
+    if not available:
+        result["contact_email"] = contact_email
+        result["message"] = ("Non abbiamo una tariffa di spedizione disponibile per questa "
+                              "combinazione di regione, peso e categoria. Contatta il nostro "
+                              "ufficio spedizioni: ti risponderemo con un preventivo dedicato.")
+    return result
+
+
 @api_router.post("/shipping/quote")
 async def shipping_quote(data: QuoteInput):
-    subtotal, weight, _ = await _price_cart(data.items)
-    cost = compute_shipping(weight, subtotal, data.shipping_option_id)
+    subtotal, weight, lines = await _price_cart(data.items)
+    quote = await _quote_shipping(data.shipping_option_id, data.region, data.unloading_service,
+                                   subtotal, weight, lines)
+    cost = quote["shipping_cost"] if quote["available"] else 0.0
     return {"subtotal": subtotal, "weight_kg": weight, "shipping_cost": cost,
-            "total": round(subtotal + cost, 2)}
+            "total": round(subtotal + cost, 2), **quote}
+
+
+# ---------------------------------------------------------------------------
+# Admin: shipping weight brackets, rates, unloading service
+# ---------------------------------------------------------------------------
+@api_router.get("/admin/shipping/weight-brackets")
+async def admin_list_weight_brackets(admin: dict = Depends(require_admin)):
+    return await db.shipping_weight_brackets.find({}, {"_id": 0}).sort("min_kg", 1).to_list(200)
+
+
+@api_router.post("/admin/shipping/weight-brackets")
+async def admin_create_weight_bracket(data: WeightBracketInput, admin: dict = Depends(require_admin)):
+    doc = data.model_dump()
+    doc["id"] = str(uuid.uuid4())
+    await db.shipping_weight_brackets.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/admin/shipping/weight-brackets/{bracket_id}")
+async def admin_update_weight_bracket(bracket_id: str, data: WeightBracketInput,
+                                      admin: dict = Depends(require_admin)):
+    res = await db.shipping_weight_brackets.update_one({"id": bracket_id}, {"$set": data.model_dump()})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Fascia di peso non trovata")
+    return await db.shipping_weight_brackets.find_one({"id": bracket_id}, {"_id": 0})
+
+
+@api_router.delete("/admin/shipping/weight-brackets/{bracket_id}")
+async def admin_delete_weight_bracket(bracket_id: str, admin: dict = Depends(require_admin)):
+    await db.shipping_weight_brackets.delete_one({"id": bracket_id})
+    await db.shipping_rates.delete_many({"weight_bracket_id": bracket_id})
+    return {"ok": True}
+
+
+@api_router.get("/admin/shipping/rates")
+async def admin_list_rates(admin: dict = Depends(require_admin)):
+    return await db.shipping_rates.find({}, {"_id": 0}).to_list(5000)
+
+
+@api_router.post("/admin/shipping/rates")
+async def admin_upsert_rate(data: ShippingRateInput, admin: dict = Depends(require_admin)):
+    key = {"shipping_option_id": data.shipping_option_id, "region": data.region,
+           "collection": data.collection, "weight_bracket_id": data.weight_bracket_id}
+    existing = await db.shipping_rates.find_one(key, {"_id": 0})
+    if existing:
+        await db.shipping_rates.update_one(key, {"$set": {"price": data.price}})
+        existing["price"] = data.price
+        return existing
+    doc = data.model_dump()
+    doc["id"] = str(uuid.uuid4())
+    await db.shipping_rates.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.delete("/admin/shipping/rates/{rate_id}")
+async def admin_delete_rate(rate_id: str, admin: dict = Depends(require_admin)):
+    await db.shipping_rates.delete_one({"id": rate_id})
+    return {"ok": True}
+
+
+@api_router.get("/admin/shipping/unloading-service")
+async def admin_get_unloading_service(admin: dict = Depends(require_admin)):
+    doc = await db.shipping_settings.find_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"_id": 0})
+    return doc or {"id": UNLOADING_SERVICE_SETTINGS_ID, "price": DEFAULT_UNLOADING_SERVICE_PRICE,
+                   "label": "Servizio di scarico (sponda idraulica + trans pallet)"}
+
+
+@api_router.put("/admin/shipping/unloading-service")
+async def admin_set_unloading_service(data: UnloadingServiceInput, admin: dict = Depends(require_admin)):
+    doc = {"id": UNLOADING_SERVICE_SETTINGS_ID, "price": data.price, "label": data.label}
+    await db.shipping_settings.update_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"$set": doc}, upsert=True)
+    return doc
+
+
+@api_router.get("/admin/shipping/regions")
+async def admin_list_regions(admin: dict = Depends(require_admin)):
+    return ITALIAN_REGIONS
 
 
 # ---------------------------------------------------------------------------
@@ -682,7 +893,12 @@ async def create_checkout(data: CheckoutInput, request: Request):
     subtotal, weight, lines = await _price_cart(data.items)
     if not lines:
         raise HTTPException(400, "Carrello vuoto")
-    shipping_cost = compute_shipping(weight, subtotal, data.shipping_option_id)
+    quote = await _quote_shipping(data.shipping_option_id, data.shipping_address.region,
+                                   data.unloading_service, subtotal, weight, lines)
+    if not quote["available"]:
+        raise HTTPException(400, "Spedizione non disponibile per questa regione/categoria/peso. "
+                                  "Contatta il nostro ufficio spedizioni.")
+    shipping_cost = quote["shipping_cost"]
     shipping_opt = next(o for o in SHIPPING_OPTIONS if o["id"] == data.shipping_option_id)
     total = round(subtotal + shipping_cost, 2)
 
@@ -720,7 +936,10 @@ async def create_checkout(data: CheckoutInput, request: Request):
         "billing": data.billing.model_dump() if data.billing else {},
         "items": lines, "subtotal": subtotal, "weight_kg": weight,
         "shipping_option": {"id": shipping_opt["id"], "name": shipping_opt["name"]},
-        "shipping_cost": shipping_cost, "total": total,
+        "shipping_cost": shipping_cost, "shipping_breakdown": quote["breakdown"],
+        "unloading_service": data.unloading_service,
+        "unloading_service_price": quote.get("unloading_service_price", 0.0),
+        "total": total,
         "status": "pending", "payment_status": "pending",
         "session_id": session.id, "tracking": "",
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
@@ -1087,6 +1306,10 @@ async def startup():
     await db.user_sessions.create_index("session_token")
     await db.sample_requests.create_index("user_id")
     await db.quote_requests.create_index("status")
+    await db.shipping_rates.create_index(
+        [("shipping_option_id", 1), ("region", 1), ("collection", 1), ("weight_bracket_id", 1)],
+        unique=True)
+    await db.shipping_weight_brackets.create_index("min_kg")
     await seed_admin()
     await seed_products()
     logger.info("Ceramica Incontro shop ready.")

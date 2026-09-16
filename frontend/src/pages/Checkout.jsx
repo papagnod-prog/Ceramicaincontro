@@ -4,7 +4,7 @@ import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { ShieldCheck, Truck } from "lucide-react";
+import { ShieldCheck, Truck, Mail } from "lucide-react";
 
 export default function Checkout() {
   const { items, subtotal, weight, clear } = useCart();
@@ -12,14 +12,17 @@ export default function Checkout() {
   const navigate = useNavigate();
 
   const [options, setOptions] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [shipId, setShipId] = useState("standard");
-  const [shippingCost, setShippingCost] = useState(0);
+  const [unloadingService, setUnloadingService] = useState(false);
+  const [unloadingPrice, setUnloadingPrice] = useState(0);
+  const [quote, setQuote] = useState({ available: true, shipping_cost: 0, breakdown: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     email: "", name: "", phone: "",
-    line1: "", city: "", postal_code: "", province: "",
+    line1: "", city: "", postal_code: "", province: "", region: "",
     vat_number: "", codice_fiscale: "", company: "",
   });
 
@@ -29,6 +32,8 @@ export default function Checkout() {
 
   useEffect(() => {
     api.get("/shipping/options").then(({ data }) => setOptions(data));
+    api.get("/shipping/regions").then(({ data }) => setRegions(data));
+    api.get("/shipping/unloading-service").then(({ data }) => setUnloadingPrice(data.price));
   }, []);
 
   useEffect(() => {
@@ -41,16 +46,35 @@ export default function Checkout() {
       .post("/shipping/quote", {
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
         shipping_option_id: shipId,
+        region: form.region || null,
+        unloading_service: unloadingService,
       })
-      .then(({ data }) => setShippingCost(data.shipping_cost))
+      .then(({ data }) => setQuote(data))
       .catch(() => {});
-  }, [shipId, items]);
+  }, [shipId, items, form.region, unloadingService]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const shippingCost = quote.available ? quote.shipping_cost : 0;
   const total = subtotal + shippingCost;
+
+  const contactMailto = () => {
+    const email = quote.contact_email || "info@ceramicaincontro.it";
+    const subject = "Richiesta preventivo spedizione — Ceramica Incontro";
+    const itemsList = items.map((i) => `- ${i.name} (Qtà ${i.quantity})`).join("\n");
+    const body =
+      `Buongiorno,\n\nvorrei un preventivo di spedizione per il mio ordine, ` +
+      `non essendo disponibile una tariffa automatica per la mia regione (${form.region || "—"}).\n\n` +
+      `Articoli in carrello:\n${itemsList}\n\nPeso totale stimato: ${weight.toFixed(1)} kg\n\n` +
+      `Il mio indirizzo di spedizione:\n[Inserisci qui indirizzo, città, CAP, provincia]\n\nGrazie,\n${form.name || ""}`;
+    return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
 
   const placeOrder = async (e) => {
     e.preventDefault();
+    if (!quote.available) {
+      toast.error("Spedizione non disponibile per questa regione: contatta il nostro ufficio spedizioni.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -60,9 +84,10 @@ export default function Checkout() {
         customer: { email: form.email, name: form.name, phone: form.phone },
         shipping_address: {
           line1: form.line1, city: form.city, postal_code: form.postal_code,
-          province: form.province, country: "IT",
+          province: form.province, region: form.region, country: "IT",
         },
         billing: { vat_number: form.vat_number, codice_fiscale: form.codice_fiscale, company: form.company },
+        unloading_service: unloadingService,
         origin_url: window.location.origin,
       });
       clear();
@@ -106,6 +131,12 @@ export default function Checkout() {
               <input className={inputCls} placeholder="Città" required value={form.city} onChange={set("city")} data-testid="checkout-city" />
               <input className={inputCls} placeholder="CAP" required value={form.postal_code} onChange={set("postal_code")} data-testid="checkout-cap" />
               <input className={inputCls} placeholder="Provincia (es. MO)" value={form.province} onChange={set("province")} data-testid="checkout-province" />
+              <select className={inputCls} required value={form.region} onChange={set("region")} data-testid="checkout-region">
+                <option value="">Seleziona regione…</option>
+                {regions.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
             </div>
           </section>
 
@@ -136,7 +167,9 @@ export default function Checkout() {
                     <div className="flex justify-between">
                       <span className="font-medium text-sm">{o.name}</span>
                       <span className="font-semibold text-sm">
-                        {shipId === o.id ? (shippingCost === 0 ? "Gratis" : eur(shippingCost)) : ""}
+                        {shipId === o.id
+                          ? (!form.region ? "—" : quote.available ? (quote.shipping_cost === 0 ? "Gratis" : eur(quote.shipping_cost)) : "N/D")
+                          : ""}
                       </span>
                     </div>
                     <p className="text-xs text-[#78716C] mt-0.5">{o.description} · {o.eta}</p>
@@ -144,6 +177,30 @@ export default function Checkout() {
                 </label>
               ))}
             </div>
+
+            <label className="flex items-start gap-3 border border-[#E2DDD5] bg-white p-4 mt-3 cursor-pointer" data-testid="checkout-unloading-service">
+              <input type="checkbox" checked={unloadingService} onChange={(e) => setUnloadingService(e.target.checked)} className="mt-1 accent-[#C05A3E]" />
+              <div className="flex-1">
+                <div className="flex justify-between">
+                  <span className="font-medium text-sm">Servizio di scarico (sponda idraulica + trans pallet)</span>
+                  <span className="font-semibold text-sm">{unloadingPrice === 0 ? "Gratis" : eur(unloadingPrice)}</span>
+                </div>
+                <p className="text-xs text-[#78716C] mt-0.5">Necessario se non disponi di mezzi per lo scarico del bancale.</p>
+              </div>
+            </label>
+
+            {form.region && !quote.available && (
+              <div className="mt-4 border border-[#E7C9A8] bg-[#FCF3E6] text-[#8A5A24] text-sm px-4 py-4 space-y-3" data-testid="checkout-shipping-unavailable">
+                <p>{quote.message || "Spedizione non disponibile per questa combinazione di regione, peso e categoria. Contatta il nostro ufficio spedizioni."}</p>
+                <a
+                  href={contactMailto()}
+                  className="inline-flex items-center gap-2 bg-[#C05A3E] text-white px-4 py-2 text-xs font-semibold tracking-wide hover:bg-[#A64B32] transition-colors"
+                  data-testid="checkout-contact-shipping-btn"
+                >
+                  <Mail className="w-4 h-4" /> Richiedi preventivo spedizione via email
+                </a>
+              </div>
+            )}
           </section>
         </div>
 
@@ -167,7 +224,10 @@ export default function Checkout() {
             </div>
             <div className="border-t border-[#E2DDD5] pt-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-[#78716C]">Subtotale</span><span>{eur(subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-[#78716C]">Spedizione</span><span>{shippingCost === 0 ? "Gratis" : eur(shippingCost)}</span></div>
+              <div className="flex justify-between">
+                <span className="text-[#78716C]">Spedizione</span>
+                <span>{!form.region ? "—" : quote.available ? (shippingCost === 0 ? "Gratis" : eur(shippingCost)) : "N/D"}</span>
+              </div>
               <div className="flex justify-between text-xs text-[#78716C]"><span>Peso</span><span>{weight.toFixed(1)} kg</span></div>
               <div className="flex justify-between text-lg font-semibold border-t border-[#E2DDD5] pt-3 mt-2">
                 <span>Totale</span><span data-testid="checkout-total">{eur(total)}</span>
@@ -177,8 +237,8 @@ export default function Checkout() {
             <button
               type="submit"
               data-testid="checkout-place-order-btn"
-              disabled={busy}
-              className="w-full bg-[#C05A3E] text-white py-4 text-sm font-semibold tracking-wide hover:bg-[#A64B32] transition-colors mt-5 disabled:opacity-60"
+              disabled={busy || (!!form.region && !quote.available)}
+              className="w-full bg-[#C05A3E] text-white py-4 text-sm font-semibold tracking-wide hover:bg-[#A64B32] transition-colors mt-5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {busy ? "Reindirizzamento…" : "Paga con Stripe"}
             </button>

@@ -4,7 +4,7 @@ import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText,
+  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText, Truck,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -44,6 +44,18 @@ export default function Admin() {
   const [editing, setEditing] = useState(null); // product being edited or null
   const [form, setForm] = useState(EMPTY_PRODUCT);
 
+  // Shipping (regione x peso x categoria)
+  const [shippingMethods, setShippingMethods] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [collectionsList, setCollectionsList] = useState([]);
+  const [brackets, setBrackets] = useState([]);
+  const [rates, setRates] = useState([]);
+  const [unloading, setUnloading] = useState({ price: "", label: "" });
+  const [bracketForm, setBracketForm] = useState({ label: "", min_kg: "", max_kg: "", order: 0 });
+  const [editingBracket, setEditingBracket] = useState(null);
+  const [rateForm, setRateForm] = useState({ shipping_option_id: "", region: "", collection: "", weight_bracket_id: "", price: "" });
+  const [rateFilter, setRateFilter] = useState({ shipping_option_id: "", collection: "" });
+
   useEffect(() => {
     if (!loading && (!user || user.role !== "admin")) navigate("/login");
   }, [loading, user, navigate]);
@@ -55,8 +67,16 @@ export default function Admin() {
     api.get("/admin/samples").then(({ data }) => setSamples(data)).catch(() => {});
     api.get("/admin/quotes").then(({ data }) => setQuotes(data)).catch(() => {});
   };
+  const loadShipping = () => {
+    api.get("/shipping/options").then(({ data }) => setShippingMethods(data)).catch(() => {});
+    api.get("/shipping/regions").then(({ data }) => setRegions(data)).catch(() => {});
+    api.get("/collections").then(({ data }) => setCollectionsList(data)).catch(() => {});
+    api.get("/admin/shipping/weight-brackets").then(({ data }) => setBrackets(data)).catch(() => {});
+    api.get("/admin/shipping/rates").then(({ data }) => setRates(data)).catch(() => {});
+    api.get("/admin/shipping/unloading-service").then(({ data }) => setUnloading({ price: data.price, label: data.label })).catch(() => {});
+  };
   useEffect(() => {
-    if (user?.role === "admin") loadAll();
+    if (user?.role === "admin") { loadAll(); loadShipping(); }
   }, [user]);
 
   if (loading || !user || user.role !== "admin")
@@ -133,6 +153,76 @@ export default function Admin() {
     loadAll();
   };
 
+  // --- Shipping: weight brackets ---
+  const openNewBracket = () => { setBracketForm({ label: "", min_kg: "", max_kg: "", order: brackets.length }); setEditingBracket("new"); };
+  const openEditBracket = (b) => { setBracketForm({ ...b, max_kg: b.max_kg ?? "" }); setEditingBracket(b.id); };
+  const saveBracket = async (e) => {
+    e.preventDefault();
+    const payload = {
+      label: bracketForm.label,
+      min_kg: parseFloat(bracketForm.min_kg) || 0,
+      max_kg: bracketForm.max_kg === "" ? null : parseFloat(bracketForm.max_kg),
+      order: parseInt(bracketForm.order) || 0,
+    };
+    try {
+      if (editingBracket === "new") await api.post("/admin/shipping/weight-brackets", payload);
+      else await api.put(`/admin/shipping/weight-brackets/${editingBracket}`, payload);
+      toast.success("Fascia di peso salvata");
+      setEditingBracket(null);
+      loadShipping();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+  const deleteBracket = async (id) => {
+    if (!window.confirm("Eliminare questa fascia di peso? Verranno eliminate anche le tariffe collegate.")) return;
+    await api.delete(`/admin/shipping/weight-brackets/${id}`);
+    toast.success("Fascia di peso eliminata");
+    loadShipping();
+  };
+
+  // --- Shipping: unloading service ---
+  const saveUnloading = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put("/admin/shipping/unloading-service", { price: parseFloat(unloading.price) || 0, label: unloading.label || "Servizio di scarico" });
+      toast.success("Servizio di scarico salvato");
+      loadShipping();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
+  // --- Shipping: rates ---
+  const saveRate = async (e) => {
+    e.preventDefault();
+    const { shipping_option_id, region, collection, weight_bracket_id, price } = rateForm;
+    if (!shipping_option_id || !region || !collection || !weight_bracket_id || price === "") {
+      toast.error("Compila tutti i campi della tariffa");
+      return;
+    }
+    try {
+      await api.post("/admin/shipping/rates", { shipping_option_id, region, collection, weight_bracket_id, price: parseFloat(price) });
+      toast.success("Tariffa salvata");
+      setRateForm((f) => ({ ...f, price: "" }));
+      loadShipping();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+  const deleteRate = async (id) => {
+    await api.delete(`/admin/shipping/rates/${id}`);
+    toast.success("Tariffa eliminata");
+    loadShipping();
+  };
+  const bracketLabel = (id) => brackets.find((b) => b.id === id)?.label || id;
+  const methodLabel = (id) => shippingMethods.find((m) => m.id === id)?.name || id;
+  const filteredRates = rates.filter(
+    (r) =>
+      (!rateFilter.shipping_option_id || r.shipping_option_id === rateFilter.shipping_option_id) &&
+      (!rateFilter.collection || r.collection === rateFilter.collection)
+  );
+
   const inputCls = "w-full bg-white border border-[#E2DDD5] px-3 py-2 focus:outline-none focus:border-[#C05A3E] text-sm";
 
   return (
@@ -149,6 +239,7 @@ export default function Admin() {
           ["orders", "Ordini", ClipboardList],
           ["samples", "Campioni", Beaker],
           ["quotes", "Preventivi", FileText],
+          ["shipping", "Spedizioni", Truck],
         ].map(([k, label, Icon]) => (
           <button
             key={k}
@@ -379,6 +470,177 @@ export default function Admin() {
             </tbody>
           </table>
           {quotes.length === 0 && <div className="p-10 text-center text-[#78716C]">Nessun preventivo richiesto.</div>}
+        </div>
+      )}
+
+      {/* Shipping */}
+      {tab === "shipping" && (
+        <div className="space-y-10" data-testid="admin-shipping">
+          {/* Weight brackets */}
+          <section>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-serif-display text-2xl">Fasce di peso</h3>
+              <button onClick={openNewBracket} data-testid="admin-add-bracket-btn"
+                className="inline-flex items-center gap-2 bg-[#C05A3E] text-white px-4 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors">
+                <Plus className="w-4 h-4" /> Nuova fascia
+              </button>
+            </div>
+            <div className="overflow-x-auto bg-white border border-[#E2DDD5]">
+              <table className="w-full text-sm" data-testid="admin-bracket-table">
+                <thead className="bg-[#F1EEE8] text-left">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Etichetta</th>
+                    <th className="px-4 py-3 font-medium">Min kg</th>
+                    <th className="px-4 py-3 font-medium">Max kg</th>
+                    <th className="px-4 py-3 font-medium">Ordine</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...brackets].sort((a, b) => a.min_kg - b.min_kg).map((b) => (
+                    <tr key={b.id} className="border-t border-[#E2DDD5]">
+                      <td className="px-4 py-3 font-medium">{b.label}</td>
+                      <td className="px-4 py-3">{b.min_kg}</td>
+                      <td className="px-4 py-3">{b.max_kg ?? "oltre"}</td>
+                      <td className="px-4 py-3">{b.order}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button onClick={() => openEditBracket(b)} className="p-2 hover:bg-[#F1EEE8] rounded"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => deleteBracket(b.id)} className="p-2 hover:bg-[#FBEAE5] rounded text-[#C05A3E]"><Trash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {brackets.length === 0 && <div className="p-8 text-center text-[#78716C]">Nessuna fascia di peso configurata.</div>}
+            </div>
+          </section>
+
+          {/* Unloading service */}
+          <section>
+            <h3 className="font-serif-display text-2xl mb-4">Servizio di scarico (sponda idraulica + trans pallet)</h3>
+            <form onSubmit={saveUnloading} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-[1fr_160px_auto] gap-3 items-end" data-testid="admin-unloading-form">
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Etichetta</label>
+                <input className={inputCls} value={unloading.label} onChange={(e) => setUnloading((u) => ({ ...u, label: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Prezzo (€)</label>
+                <input type="number" step="0.01" className={inputCls} value={unloading.price} onChange={(e) => setUnloading((u) => ({ ...u, price: e.target.value }))} data-testid="admin-unloading-price" />
+              </div>
+              <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors h-fit">Salva</button>
+            </form>
+          </section>
+
+          {/* Rates matrix */}
+          <section>
+            <h3 className="font-serif-display text-2xl mb-4">Tariffe per regione, peso e categoria</h3>
+            <form onSubmit={saveRate} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-5 gap-3 items-end mb-5" data-testid="admin-rate-form">
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Metodo</label>
+                <select className={inputCls} value={rateForm.shipping_option_id} onChange={(e) => setRateForm((f) => ({ ...f, shipping_option_id: e.target.value }))}>
+                  <option value="">Seleziona…</option>
+                  {shippingMethods.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Regione</label>
+                <select className={inputCls} value={rateForm.region} onChange={(e) => setRateForm((f) => ({ ...f, region: e.target.value }))}>
+                  <option value="">Seleziona…</option>
+                  {regions.map((r) => (<option key={r} value={r}>{r}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Categoria</label>
+                <select className={inputCls} value={rateForm.collection} onChange={(e) => setRateForm((f) => ({ ...f, collection: e.target.value }))}>
+                  <option value="">Seleziona…</option>
+                  {collectionsList.map((c) => (<option key={c} value={c}>{c}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Fascia di peso</label>
+                <select className={inputCls} value={rateForm.weight_bracket_id} onChange={(e) => setRateForm((f) => ({ ...f, weight_bracket_id: e.target.value }))}>
+                  <option value="">Seleziona…</option>
+                  {brackets.map((b) => (<option key={b.id} value={b.id}>{b.label}</option>))}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-[#78716C] block mb-1">Prezzo (€)</label>
+                  <input type="number" step="0.01" className={inputCls} value={rateForm.price} onChange={(e) => setRateForm((f) => ({ ...f, price: e.target.value }))} data-testid="admin-rate-price" />
+                </div>
+                <button type="submit" data-testid="admin-rate-save" className="bg-[#C05A3E] text-white px-4 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors h-fit self-end">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+
+            <div className="flex gap-3 mb-3">
+              <select className={inputCls + " max-w-[220px]"} value={rateFilter.shipping_option_id} onChange={(e) => setRateFilter((f) => ({ ...f, shipping_option_id: e.target.value }))}>
+                <option value="">Tutti i metodi</option>
+                {shippingMethods.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
+              </select>
+              <select className={inputCls + " max-w-[220px]"} value={rateFilter.collection} onChange={(e) => setRateFilter((f) => ({ ...f, collection: e.target.value }))}>
+                <option value="">Tutte le categorie</option>
+                {collectionsList.map((c) => (<option key={c} value={c}>{c}</option>))}
+              </select>
+            </div>
+
+            <div className="overflow-x-auto bg-white border border-[#E2DDD5]">
+              <table className="w-full text-sm" data-testid="admin-rate-table">
+                <thead className="bg-[#F1EEE8] text-left">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Metodo</th>
+                    <th className="px-4 py-3 font-medium">Regione</th>
+                    <th className="px-4 py-3 font-medium">Categoria</th>
+                    <th className="px-4 py-3 font-medium">Fascia di peso</th>
+                    <th className="px-4 py-3 font-medium">Prezzo</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRates.map((r) => (
+                    <tr key={r.id} className="border-t border-[#E2DDD5]">
+                      <td className="px-4 py-3">{methodLabel(r.shipping_option_id)}</td>
+                      <td className="px-4 py-3">{r.region}</td>
+                      <td className="px-4 py-3">{r.collection}</td>
+                      <td className="px-4 py-3">{bracketLabel(r.weight_bracket_id)}</td>
+                      <td className="px-4 py-3 font-medium">{eur(r.price)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => deleteRate(r.id)} className="p-2 hover:bg-[#FBEAE5] rounded text-[#C05A3E]"><Trash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredRates.length === 0 && <div className="p-8 text-center text-[#78716C]">Nessuna tariffa configurata.</div>}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Weight bracket editor modal */}
+      {editingBracket && (
+        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4" onClick={() => setEditingBracket(null)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={saveBracket}
+            className="bg-[#F8F6F2] w-full max-w-md p-6" data-testid="admin-bracket-form">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-serif-display text-2xl">{editingBracket === "new" ? "Nuova fascia di peso" : "Modifica fascia di peso"}</h3>
+              <button type="button" onClick={() => setEditingBracket(null)} className="p-2 hover:bg-[#F1EEE8] rounded-full"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input className={inputCls + " col-span-2"} placeholder="Etichetta (es. 0-20 kg)" required
+                value={bracketForm.label} onChange={(e) => setBracketForm((f) => ({ ...f, label: e.target.value }))} />
+              <input className={inputCls} type="number" step="0.01" placeholder="Min kg" required
+                value={bracketForm.min_kg} onChange={(e) => setBracketForm((f) => ({ ...f, min_kg: e.target.value }))} />
+              <input className={inputCls} type="number" step="0.01" placeholder="Max kg (vuoto = oltre)"
+                value={bracketForm.max_kg} onChange={(e) => setBracketForm((f) => ({ ...f, max_kg: e.target.value }))} />
+              <input className={inputCls + " col-span-2"} type="number" placeholder="Ordine"
+                value={bracketForm.order} onChange={(e) => setBracketForm((f) => ({ ...f, order: e.target.value }))} />
+            </div>
+            <button type="submit" className="w-full bg-[#C05A3E] text-white py-3 text-sm font-semibold hover:bg-[#A64B32] transition-colors mt-5">
+              Salva fascia
+            </button>
+          </form>
         </div>
       )}
 
