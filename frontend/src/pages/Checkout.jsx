@@ -14,6 +14,7 @@ export default function Checkout() {
   const [options, setOptions] = useState([]);
   const [regions, setRegions] = useState([]);
   const [shipId, setShipId] = useState("standard");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [unloadingService, setUnloadingService] = useState(false);
   const [unloadingPrice, setUnloadingPrice] = useState(0);
   const [quote, setQuote] = useState({ available: true, shipping_cost: 0, breakdown: [] });
@@ -88,6 +89,7 @@ export default function Checkout() {
         },
         billing: { vat_number: form.vat_number, codice_fiscale: form.codice_fiscale, company: form.company },
         unloading_service: unloadingService,
+        payment_method: paymentMethod,
         origin_url: window.location.origin + "/shop",
       });
       clear();
@@ -202,6 +204,37 @@ export default function Checkout() {
               </div>
             )}
           </section>
+
+          {/* Payment method */}
+          <section>
+            <h2 className="eyebrow mb-4 text-[#C05A3E]">5 · Metodo di pagamento</h2>
+            <div className="space-y-3">
+              <label
+                data-testid="payment-method-cash"
+                className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${
+                  paymentMethod === "cash" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
+                }`}
+              >
+                <input type="radio" name="payment" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} className="mt-1 accent-[#C05A3E]" />
+                <div className="flex-1">
+                  <span className="font-medium text-sm">Contanti alla consegna / ritiro</span>
+                  <p className="text-xs text-[#78716C] mt-0.5">Paghi in contanti quando ricevi o ritiri la merce.</p>
+                </div>
+              </label>
+              <label
+                data-testid="payment-method-bank_transfer"
+                className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${
+                  paymentMethod === "bank_transfer" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
+                }`}
+              >
+                <input type="radio" name="payment" checked={paymentMethod === "bank_transfer"} onChange={() => setPaymentMethod("bank_transfer")} className="mt-1 accent-[#C05A3E]" />
+                <div className="flex-1">
+                  <span className="font-medium text-sm">Bonifico bancario</span>
+                  <p className="text-xs text-[#78716C] mt-0.5">Riceverai i dati per il bonifico via email dopo l'ordine.</p>
+                </div>
+              </label>
+            </div>
+          </section>
         </div>
 
         {/* Summary */}
@@ -240,7 +273,7 @@ export default function Checkout() {
               disabled={busy || (!!form.region && !quote.available)}
               className="w-full bg-[#C05A3E] text-white py-4 text-sm font-semibold tracking-wide hover:bg-[#A64B32] transition-colors mt-5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {busy ? "Reindirizzamento…" : "Paga con Stripe"}
+              {busy ? "Invio ordine…" : "Conferma ordine"}
             </button>
             <div className="flex items-center gap-2 text-xs text-[#78716C] mt-4">
               <ShieldCheck className="w-4 h-4 text-[#6B7A6E]" /> Pagamento sicuro e crittografato

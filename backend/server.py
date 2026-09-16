@@ -46,6 +46,12 @@ EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ceramica Incontro")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
 
+# Bank transfer details shown to customers who choose "bonifico bancario".
+# Placeholder until the client supplies the real IBAN/account holder.
+BANK_TRANSFER_IBAN = os.environ.get("BANK_TRANSFER_IBAN", "IT00 0000 0000 0000 0000 0000000")
+BANK_TRANSFER_HOLDER = os.environ.get("BANK_TRANSFER_HOLDER", "Ceramica Incontro S.r.l.")
+BANK_TRANSFER_BIC = os.environ.get("BANK_TRANSFER_BIC", "")
+
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
 _CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
              "send us your password", "enter your password below", "confirm your card number",
@@ -161,10 +167,33 @@ def _order_email_html(order: dict) -> str:
     addr = order.get("shipping_address", {})
     ship = order.get("shipping_option", {})
     account_url = f"{FRONTEND_URL}/account"
+    payment_method = order.get("payment_method", "card")
+
+    if payment_method == "card":
+        intro = (f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong> '
+                  'e il pagamento &egrave; stato confermato.')
+        payment_note = ""
+    elif payment_method == "bank_transfer":
+        intro = (f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong>. '
+                  'Per confermarlo, effettua il pagamento tramite bonifico bancario con i dati seguenti, '
+                  'indicando il numero d&rsquo;ordine come causale.')
+        payment_note = (
+            f'<table role="presentation" width="100%" style="margin:16px 0;font-size:14px;background:#F8F6F2;padding:12px">'
+            f'<tr><td style="padding:4px 0;color:#78716C">Beneficiario</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_HOLDER)}</td></tr>'
+            f'<tr><td style="padding:4px 0;color:#78716C">IBAN</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_IBAN)}</td></tr>'
+            + (f'<tr><td style="padding:4px 0;color:#78716C">BIC/SWIFT</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_BIC)}</td></tr>' if BANK_TRANSFER_BIC else "")
+            + f'<tr><td style="padding:4px 0;color:#78716C">Causale</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(str(order["order_number"]))}</td></tr>'
+            f'</table>')
+    else:  # cash on delivery
+        intro = (f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong>. '
+                  'Il pagamento avverr&agrave; in contanti alla consegna / ritiro.')
+        payment_note = ""
+
     inner = (
         f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Grazie per il tuo ordine!</h1>'
         f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(order.get("customer", {}).get("name", "")))}, '
-        f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong> e il pagamento &egrave; stato confermato.</p>'
+        f'{intro}</p>'
+        f'{payment_note}'
         f'<table role="presentation" width="100%" style="margin:20px 0;font-size:14px">{rows}'
         f'<tr><td style="padding:8px 0;color:#78716C">Spedizione ({escape(str(ship.get("name", "")))})</td>'
         f'<td style="padding:8px 0;text-align:right;color:#78716C">&euro; {order.get("shipping_cost", 0):.2f}</td></tr>'
@@ -429,6 +458,7 @@ class CheckoutInput(BaseModel):
     billing: Optional[BillingInfo] = None
     origin_url: str
     unloading_service: bool = False
+    payment_method: str = "cash"  # "cash" (contrassegno) or "bank_transfer" (bonifico). "card" reserved for future Stripe launch.
 
 
 class ProductInput(BaseModel):
@@ -897,29 +927,9 @@ async def create_checkout(data: CheckoutInput, request: Request):
     order_id = str(uuid.uuid4())
     order_number = "CI-" + datetime.now().strftime("%y%m%d") + "-" + order_id[:6].upper()
 
-    stripe_lines = []
-    for ln in lines:
-        stripe_lines.append({
-            "price_data": {"currency": "eur",
-                           "product_data": {"name": f"{ln['collection']} — {ln['name']}"},
-                           "unit_amount": int(round(ln["price"] * 100))},
-            "quantity": ln["quantity"]})
-    if shipping_cost > 0:
-        stripe_lines.append({
-            "price_data": {"currency": "eur",
-                           "product_data": {"name": f"Spedizione — {shipping_opt['name']}"},
-                           "unit_amount": int(round(shipping_cost * 100))},
-            "quantity": 1})
+    payment_method = data.payment_method if data.payment_method in ("cash", "bank_transfer", "card") else "cash"
 
-    session = stripe.checkout.Session.create(
-        line_items=stripe_lines,
-        mode="payment",
-        customer_email=data.customer.email,
-        success_url=f"{data.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{data.origin_url}/payment/cancel",
-        metadata={"order_id": order_id, "order_number": order_number})
-
-    order = {
+    base_order = {
         "id": order_id, "order_number": order_number,
         "user_id": user["id"] if user else None,
         "customer": data.customer.model_dump(),
@@ -930,18 +940,62 @@ async def create_checkout(data: CheckoutInput, request: Request):
         "shipping_cost": shipping_cost, "shipping_breakdown": quote["breakdown"],
         "unloading_service": data.unloading_service,
         "unloading_service_price": quote.get("unloading_service_price", 0.0),
-        "total": total,
-        "status": "pending", "payment_status": "pending",
-        "session_id": session.id, "tracking": "",
+        "total": total, "payment_method": payment_method,
+        "tracking": "",
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
+
+    if payment_method == "card":
+        # Reserved for when a real Stripe key is configured. Falls through to
+        # Stripe Checkout as before.
+        stripe_lines = []
+        for ln in lines:
+            stripe_lines.append({
+                "price_data": {"currency": "eur",
+                               "product_data": {"name": f"{ln['collection']} — {ln['name']}"},
+                               "unit_amount": int(round(ln["price"] * 100))},
+                "quantity": ln["quantity"]})
+        if shipping_cost > 0:
+            stripe_lines.append({
+                "price_data": {"currency": "eur",
+                               "product_data": {"name": f"Spedizione — {shipping_opt['name']}"},
+                               "unit_amount": int(round(shipping_cost * 100))},
+                "quantity": 1})
+
+        session = stripe.checkout.Session.create(
+            line_items=stripe_lines,
+            mode="payment",
+            customer_email=data.customer.email,
+            success_url=f"{data.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{data.origin_url}/payment/cancel",
+            metadata={"order_id": order_id, "order_number": order_number})
+
+        order = {**base_order, "status": "pending", "payment_status": "pending",
+                 "session_id": session.id}
+        await db.orders.insert_one(order)
+        await db.payment_transactions.insert_one({
+            "session_id": session.id, "order_id": order_id, "user_id": user["id"] if user else None,
+            "amount": total, "currency": "eur", "status": "initiated", "payment_status": "pending",
+            "created_at": now_utc(), "updated_at": now_utc()})
+
+        return {"checkout_url": session.url, "session_id": session.id, "order_number": order_number,
+                "payment_method": payment_method}
+
+    # Cash on delivery ("contrassegno") or bank transfer ("bonifico"): no Stripe involved.
+    # Order is confirmed immediately; payment is settled offline / on delivery.
+    order = {**base_order,
+             "status": "processing" if payment_method == "cash" else "pending",
+             "payment_status": "cod_pending" if payment_method == "cash" else "awaiting_transfer",
+             "session_id": None}
     await db.orders.insert_one(order)
 
-    await db.payment_transactions.insert_one({
-        "session_id": session.id, "order_id": order_id, "user_id": user["id"] if user else None,
-        "amount": total, "currency": "eur", "status": "initiated", "payment_status": "pending",
-        "created_at": now_utc(), "updated_at": now_utc()})
+    if not order.get("email_sent"):
+        await db.orders.update_one({"id": order_id}, {"$set": {"email_sent": True}})
+        await _safe_send(data.customer.email,
+                         f"Ordine confermato {order_number} — Ceramica Incontro",
+                         _order_email_html(order))
 
-    return {"checkout_url": session.url, "session_id": session.id, "order_number": order_number}
+    return {"checkout_url": f"{data.origin_url}/payment/confirmation?order={order_number}&method={payment_method}",
+            "session_id": None, "order_number": order_number, "payment_method": payment_method}
 
 
 async def _mark_paid(session_id: str, payment_intent=None):
@@ -1204,7 +1258,9 @@ async def update_quote_status(quote_id: str, data: QuoteStatusInput, admin: dict
 
 @api_router.get("/admin/stats")
 async def admin_stats(admin: dict = Depends(require_admin)):
-    orders = await db.orders.find({"payment_status": "paid"}, {"_id": 0}).to_list(1000)
+    # Confirmed = paid by card, or a placed cash/bank_transfer order (settled offline/on delivery).
+    confirmed_filter = {"payment_status": {"$in": ["paid", "cod_pending", "awaiting_transfer"]}}
+    orders = await db.orders.find(confirmed_filter, {"_id": 0}).to_list(1000)
     revenue = round(sum(o["total"] for o in orders), 2)
     total_orders = await db.orders.count_documents({})
     pending = await db.orders.count_documents({"status": "processing"})

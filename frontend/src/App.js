@@ -15,6 +15,7 @@ import Register from "@/pages/Register";
 import AuthCallback from "@/pages/AuthCallback";
 import Checkout from "@/pages/Checkout";
 import { PaymentSuccess, PaymentCancel } from "@/pages/PaymentStatus";
+import PaymentConfirmation from "@/pages/PaymentConfirmation";
 import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
 import Samples from "@/pages/Samples";
@@ -42,6 +43,7 @@ function Shell() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
+          <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
           <Route path="/account" element={<Account />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/campioni" element={<Samples />} />
