@@ -36,11 +36,11 @@ export default function Home() {
             pavimenti in gres, con stampa digitale ad altissima definizione.
           </p>
           <div className="flex flex-wrap gap-4 mt-9 ci-fade-up" style={{ animationDelay: "240ms" }}>
-            <Link to="/negozio" data-testid="hero-shop-btn" className="group bg-[#C05A3E] text-white px-8 py-4 text-sm font-semibold tracking-wide hover:bg-[#A64B32] transition-colors inline-flex items-center gap-2">
+            <Link to="/prodotti" data-testid="hero-shop-btn" className="group bg-[#C05A3E] text-white px-8 py-4 text-sm font-semibold tracking-wide hover:bg-[#A64B32] transition-colors inline-flex items-center gap-2">
               Esplora il negozio
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <Link to="/negozio?collection=SMUSSO" className="border border-white/50 text-white px-8 py-4 text-sm font-semibold tracking-wide hover:bg-white hover:text-[#1C1917] transition-colors">
+            <Link to="/prodotti?collection=SMUSSO" className="border border-white/50 text-white px-8 py-4 text-sm font-semibold tracking-wide hover:bg-white hover:text-[#1C1917] transition-colors">
               Scopri SMUSSO
             </Link>
           </div>
@@ -54,13 +54,13 @@ export default function Home() {
             <p className="eyebrow text-[#C05A3E] mb-2">Le collezioni</p>
             <h2 className="font-serif-display text-4xl lg:text-5xl font-light">Superfici che raccontano</h2>
           </div>
-          <Link to="/negozio" className="hidden sm:inline text-sm font-medium ci-link-underline">Vedi tutto</Link>
+          <Link to="/prodotti" className="hidden sm:inline text-sm font-medium ci-link-underline">Vedi tutto</Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           {COLLECTION_TILES.map((c, i) => (
             <Link
               key={c.name}
-              to={`/negozio?collection=${encodeURIComponent(c.name)}`}
+              to={`/prodotti?collection=${encodeURIComponent(c.name)}`}
               className="group relative aspect-[3/4] overflow-hidden ci-fade-up"
               style={{ animationDelay: `${i * 80}ms` }}
             >

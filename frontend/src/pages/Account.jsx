@@ -64,7 +64,7 @@ export default function Account() {
         <div className="text-center py-20 bg-white border border-[#E2DDD5]">
           <Package className="w-10 h-10 text-[#C0B9AE] mx-auto mb-3" strokeWidth={1} />
           <p className="text-[#78716C]">Non hai ancora effettuato ordini.</p>
-          <button onClick={() => navigate("/negozio")} className="mt-4 text-[#C05A3E] font-medium ci-link-underline">Vai al negozio</button>
+          <button onClick={() => navigate("/prodotti")} className="mt-4 text-[#C05A3E] font-medium ci-link-underline">Vai al negozio</button>
         </div>
       ) : (
         <div className="space-y-4">

@@ -35,7 +35,7 @@ function Shell() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/negozio" element={<Catalog />} />
+          <Route path="/prodotti" element={<Catalog />} />
           <Route path="/prodotto/:id" element={<ProductDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -55,7 +55,7 @@ function Shell() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/shop">
       <AuthProvider>
         <CartProvider>
           <SamplesProvider>

@@ -17,7 +17,7 @@ export const Footer = () => (
           <ul className="space-y-2 text-sm text-[#D6D3D1]">
             {["SMUSSO", "Battiscopa", "Moon Spots", "Paper Glass", "Stony"].map((c) => (
               <li key={c}>
-                <Link to={`/negozio?collection=${encodeURIComponent(c)}`} className="hover:text-white transition-colors">
+                <Link to={`/prodotti?collection=${encodeURIComponent(c)}`} className="hover:text-white transition-colors">
                   {c}
                 </Link>
               </li>
@@ -34,7 +34,7 @@ export const Footer = () => (
               <Link to="/preventivo-progetto" className="hover:text-white transition-colors">Preventivi Progetto</Link>
             </li>
             <li>
-              <Link to="/negozio" className="hover:text-white transition-colors">Negozio</Link>
+              <Link to="/prodotti" className="hover:text-white transition-colors">Negozio</Link>
             </li>
             <li>
               <Link to="/account" className="hover:text-white transition-colors">Il mio account</Link>

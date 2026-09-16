@@ -27,7 +27,7 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    if (items.length === 0) navigate("/negozio");
+    if (items.length === 0) navigate("/prodotti");
   }, [items, navigate]);
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function Checkout() {
         },
         billing: { vat_number: form.vat_number, codice_fiscale: form.codice_fiscale, company: form.company },
         unloading_service: unloadingService,
-        origin_url: window.location.origin,
+        origin_url: window.location.origin + "/shop",
       });
       clear();
       window.location.href = data.checkout_url;

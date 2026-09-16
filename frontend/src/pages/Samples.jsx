@@ -54,7 +54,7 @@ export default function Samples() {
           Grazie! La tua richiesta campioni <strong>{done}</strong> è stata registrata. Ti abbiamo
           inviato una email di conferma e ti contatteremo appena i campioni saranno spediti.
         </p>
-        <Link to="/negozio" className="inline-block mt-8 bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#3A3733] transition-colors">
+        <Link to="/prodotti" className="inline-block mt-8 bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#3A3733] transition-colors">
           Torna al negozio
         </Link>
       </div>
@@ -63,7 +63,7 @@ export default function Samples() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10" data-testid="samples-page">
-      <Link to="/negozio" className="inline-flex items-center gap-2 text-sm text-[#78716C] hover:text-[#1C1917] mb-8">
+      <Link to="/prodotti" className="inline-flex items-center gap-2 text-sm text-[#78716C] hover:text-[#1C1917] mb-8">
         <ArrowLeft className="w-4 h-4" /> Torna al negozio
       </Link>
       <p className="eyebrow text-[#C05A3E] mb-2">Prova prima di acquistare</p>

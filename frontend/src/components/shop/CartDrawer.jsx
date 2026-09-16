@@ -40,7 +40,7 @@ export const CartDrawer = () => {
             <button
               onClick={() => {
                 setOpen(false);
-                navigate("/negozio");
+                navigate("/prodotti");
               }}
               className="mt-2 bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#C05A3E] transition-colors"
             >

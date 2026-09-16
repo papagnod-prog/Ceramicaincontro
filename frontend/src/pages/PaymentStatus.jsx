@@ -58,7 +58,7 @@ export function PaymentSuccess() {
           <p className="text-[#78716C] mt-2">Riceverai una conferma via email con i dettagli della spedizione.</p>
           <div className="flex gap-4 justify-center mt-8">
             <Link to="/account" className="bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#C05A3E] transition-colors">I miei ordini</Link>
-            <Link to="/negozio" className="border border-[#E2DDD5] px-6 py-3 text-sm font-medium hover:bg-white transition-colors">Continua lo shopping</Link>
+            <Link to="/prodotti" className="border border-[#E2DDD5] px-6 py-3 text-sm font-medium hover:bg-white transition-colors">Continua lo shopping</Link>
           </div>
         </>
       )}
@@ -73,7 +73,7 @@ export function PaymentSuccess() {
               ? "Il pagamento potrebbe richiedere qualche minuto. Controlla i tuoi ordini a breve."
               : "Non è stato possibile confermare il pagamento."}
           </p>
-          <Link to="/negozio" className="inline-block mt-8 bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#C05A3E] transition-colors">Torna al negozio</Link>
+          <Link to="/prodotti" className="inline-block mt-8 bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#C05A3E] transition-colors">Torna al negozio</Link>
         </>
       )}
     </div>

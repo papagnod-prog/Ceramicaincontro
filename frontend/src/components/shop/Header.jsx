@@ -17,7 +17,7 @@ export const Header = () => {
 
   const submitSearch = (e) => {
     e.preventDefault();
-    navigate(`/negozio?search=${encodeURIComponent(q)}`);
+    navigate(`/prodotti?search=${encodeURIComponent(q)}`);
     setMobileOpen(false);
   };
 
@@ -39,7 +39,7 @@ export const Header = () => {
             {COLLECTIONS.map((c) => (
               <Link
                 key={c}
-                to={`/negozio?collection=${encodeURIComponent(c)}`}
+                to={`/prodotti?collection=${encodeURIComponent(c)}`}
                 data-testid="nav-category-link"
                 className="text-sm font-medium text-[#57534E] hover:text-[#1C1917] ci-link-underline transition-colors"
               >
@@ -132,7 +132,7 @@ export const Header = () => {
           {COLLECTIONS.map((c) => (
             <Link
               key={c}
-              to={`/negozio?collection=${encodeURIComponent(c)}`}
+              to={`/prodotti?collection=${encodeURIComponent(c)}`}
               onClick={() => setMobileOpen(false)}
               className="block py-2 text-[#1C1917] font-medium"
             >
