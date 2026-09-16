@@ -280,28 +280,19 @@ MAX_SAMPLE_ITEMS = 5
 # Shipping configuration (weight-based, multiple options)
 # ---------------------------------------------------------------------------
 SHIPPING_OPTIONS = [
-    {"id": "standard", "name": "Corriere Standard", "rate_per_kg": 0.60, "min_cost": 12.0,
+    {"id": "standard", "name": "Corriere Standard",
      "free_over": 900.0, "eta": "5-7 giorni lavorativi",
      "description": "Consegna al piano strada in tutta Italia."},
-    {"id": "express", "name": "Corriere Espresso", "rate_per_kg": 1.10, "min_cost": 24.0,
+    {"id": "express", "name": "Corriere Espresso",
      "free_over": None, "eta": "2-3 giorni lavorativi",
      "description": "Spedizione prioritaria con tracciamento."},
-    {"id": "pallet", "name": "Spedizione su Bancale", "rate_per_kg": 0.42, "min_cost": 65.0,
+    {"id": "pallet", "name": "Spedizione su Bancale",
      "free_over": None, "eta": "4-6 giorni lavorativi",
      "description": "Consigliata per grandi quantità (oltre 150 kg)."},
-    {"id": "pickup", "name": "Ritiro in sede — Sassuolo", "rate_per_kg": 0.0, "min_cost": 0.0,
+    {"id": "pickup", "name": "Ritiro in sede — Sassuolo",
      "free_over": None, "eta": "Su appuntamento",
      "description": "Ritiro gratuito presso lo stabilimento di Sassuolo (MO)."},
 ]
-
-
-def compute_shipping(weight_kg: float, subtotal: float, option_id: str) -> float:
-    opt = next((o for o in SHIPPING_OPTIONS if o["id"] == option_id), None)
-    if opt is None:
-        raise HTTPException(400, "Metodo di spedizione non valido")
-    if opt["free_over"] is not None and subtotal >= opt["free_over"]:
-        return 0.0
-    return round(max(opt["min_cost"], weight_kg * opt["rate_per_kg"]), 2)
 
 
 # ---------------------------------------------------------------------------
