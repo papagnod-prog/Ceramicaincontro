@@ -10,6 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
+import asyncio
 import logging
 import uuid
 import secrets
@@ -38,10 +39,13 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 
 # ---------------------------------------------------------------------------
-# Email (Emergent-managed Resend)
+# Email (SMTP — hosting mailbox on ceramicaincontro.it)
 # ---------------------------------------------------------------------------
-EMAIL_BASE_URL = "https://integrations.emergentagent.com"
-EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", SMTP_USER)
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ceramica Incontro")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
@@ -125,19 +129,36 @@ def _assert_safe_email(subject: str, html: str) -> None:
                 raise ValueError(f"Anchor text {m.group(1)!r} != real link host {real!r} (G3)")
 
 
+def _send_email_smtp_sync(*, to: str, subject: str, html: str) -> str:
+    import smtplib
+    import ssl
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.utils import formataddr, make_msgid
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = formataddr((EMAIL_FROM_NAME, EMAIL_FROM_ADDRESS))
+    msg["To"] = to
+    if EMAIL_REPLY_TO:
+        msg["Reply-To"] = EMAIL_REPLY_TO
+    msg_id = make_msgid()
+    msg["Message-ID"] = msg_id
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as server:
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(EMAIL_FROM_ADDRESS, [to], msg.as_string())
+    return msg_id
+
+
 async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
-    if not EMAIL_KEY:
-        logger.warning("EMERGENT_EMAIL_KEY not set — skipping email send")
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASSWORD):
+        logger.warning("SMTP not configured (SMTP_HOST/SMTP_USER/SMTP_PASSWORD) — skipping email send")
         return None
     _assert_safe_email(subject, html)
-    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
-    if EMAIL_REPLY_TO:
-        payload["contact_email"] = EMAIL_REPLY_TO
-    async with httpx.AsyncClient(timeout=30) as http:
-        resp = await http.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
-                               headers={"X-Email-Key": EMAIL_KEY}, json=payload)
-    resp.raise_for_status()
-    return resp.json().get("id")
+    return await asyncio.to_thread(_send_email_smtp_sync, to=to, subject=subject, html=html)
 
 
 def _brand_wrap(inner: str) -> str:
