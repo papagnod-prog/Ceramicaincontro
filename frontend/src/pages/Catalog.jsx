@@ -5,10 +5,12 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const FINISHES = ["all", "Matt", "Lucido", "Naturale", "Strutturato", "Antiscivolo R11"];
 
 export default function Catalog() {
+  usePageTitle("Prodotti");
   const [params, setParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [collections, setCollections] = useState([]);

@@ -4,6 +4,7 @@ import api, { eur } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useSamples, MAX_SAMPLES } from "@/context/SamplesContext";
 import { Minus, Plus, ArrowLeft, Check, Beaker } from "lucide-react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -12,6 +13,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [qty, setQty] = useState(1);
   const [area, setArea] = useState("");
+  usePageTitle(product ? product.name : "Prodotto");
 
   useEffect(() => {
     api.get(`/products/${id}`).then(({ data }) => setProduct(data)).catch(() => setProduct(false));

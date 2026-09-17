@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { formatApiErrorDetail } from "@/lib/api";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const SIDE_IMG = "https://images.unsplash.com/photo-1673731535556-665e8b8041fe?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000";
 
 export default function Register() {
+  usePageTitle("Registrati");
   const { register } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");

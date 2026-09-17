@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import api, { eur } from "@/lib/api";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { ArrowRight } from "lucide-react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const HERO = "https://images.unsplash.com/photo-1763485956232-45c74e1e8610?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600";
 
@@ -15,6 +16,7 @@ const COLLECTION_TILES = [
 
 export default function Home() {
   const [featured, setFeatured] = useState([]);
+  usePageTitle(null);
 
   useEffect(() => {
     api.get("/products?sort=featured").then(({ data }) => setFeatured(data.filter((p) => p.featured).slice(0, 8)));

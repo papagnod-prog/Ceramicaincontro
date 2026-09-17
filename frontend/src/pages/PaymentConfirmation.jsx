@@ -1,7 +1,9 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Landmark, Banknote } from "lucide-react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function PaymentConfirmation() {
+  usePageTitle("Ordine confermato");
   const [params] = useSearchParams();
   const orderNumber = params.get("order");
   const method = params.get("method");

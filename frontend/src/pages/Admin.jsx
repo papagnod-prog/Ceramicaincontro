@@ -9,6 +9,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "cancelled", "refunded"];
 const STATUS_LABEL = {
@@ -33,6 +34,7 @@ const EMPTY_PRODUCT = {
 };
 
 export default function Admin() {
+  usePageTitle("Pannello Admin");
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState("dashboard");

@@ -5,8 +5,10 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { ShieldCheck, Truck, Mail } from "lucide-react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function Checkout() {
+  usePageTitle("Checkout");
   const { items, subtotal, weight, clear } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();

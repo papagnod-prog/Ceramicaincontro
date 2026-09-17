@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { X, ArrowLeft, Beaker } from "lucide-react";
 import { useSamples, MAX_SAMPLES } from "@/context/SamplesContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const EMPTY_FORM = {
   name: "", email: "", phone: "",
@@ -12,6 +13,7 @@ const EMPTY_FORM = {
 };
 
 export default function Samples() {
+  usePageTitle("Campioni gratuiti");
   const { items, removeSample, clear } = useSamples();
   const [form, setForm] = useState(EMPTY_FORM);
   const [sending, setSending] = useState(false);

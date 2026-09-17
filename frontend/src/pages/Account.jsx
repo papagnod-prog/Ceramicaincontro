@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api, { eur } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { LogOut, Package, ShieldCheck } from "lucide-react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const STATUS_LABEL = {
   pending: "In attesa di pagamento",
@@ -22,6 +23,7 @@ const STATUS_COLOR = {
 };
 
 export default function Account() {
+  usePageTitle("Il mio account");
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);

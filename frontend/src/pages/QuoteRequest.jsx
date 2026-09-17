@@ -6,6 +6,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const PROFESSIONS = ["Architetto", "Interior Designer", "Impresa di costruzioni", "Rivenditore", "Altro professionista"];
 const PROJECT_TYPES = ["Residenziale", "Commerciale", "Hospitality / Ristorazione", "Uffici", "Altro"];
@@ -17,6 +18,7 @@ const EMPTY_FORM = {
 };
 
 export default function QuoteRequest() {
+  usePageTitle("Preventivo Progetto");
   const [form, setForm] = useState(EMPTY_FORM);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null);

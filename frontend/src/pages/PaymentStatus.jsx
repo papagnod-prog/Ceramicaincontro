@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export function PaymentSuccess() {
+  usePageTitle("Pagamento completato");
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
   const [status, setStatus] = useState("checking"); // checking, paid, error, timeout
@@ -81,6 +83,7 @@ export function PaymentSuccess() {
 }
 
 export function PaymentCancel() {
+  usePageTitle("Pagamento annullato");
   return (
     <div data-testid="payment-cancel-page" className="max-w-lg mx-auto px-4 py-24 text-center">
       <XCircle className="w-16 h-16 text-[#8C8275] mx-auto mb-6" strokeWidth={1.5} />

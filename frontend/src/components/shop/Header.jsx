@@ -29,10 +29,12 @@ export const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <Link to="/" data-testid="brand-logo" className="flex flex-col leading-none">
-            <span className="font-serif-display text-2xl sm:text-3xl tracking-tight text-[#1C1917]">
-              Ceramica Incontro
-            </span>
-            <span className="eyebrow text-[0.6rem] mt-0.5 text-[#C05A3E]">fittile_ · dal 1976</span>
+            <img
+              src={`${process.env.PUBLIC_URL}/images/logo-full.png`}
+              alt="Ceramica Incontro"
+              className="h-9 sm:h-11 w-auto object-contain"
+            />
+            <span className="eyebrow text-[0.6rem] mt-1 text-[#C05A3E]">fittile_ · dal 1976</span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-8">
