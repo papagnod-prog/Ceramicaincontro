@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import api, { formatApiErrorDetail } from "@/lib/api";
+import api, { formatApiErrorDetail, setToken, clearToken } from "@/lib/api";
 
 const AuthContext = createContext(null);
 
@@ -28,19 +28,25 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const { data } = await api.post("/auth/login", { email, password });
+    setToken(data.token);
     setUser(data.user);
     return data.user;
   };
 
   const register = async (name, email, password) => {
     const { data } = await api.post("/auth/register", { name, email, password });
+    setToken(data.token);
     setUser(data.user);
     return data.user;
   };
 
   const logout = async () => {
-    await api.post("/auth/logout");
-    setUser(false);
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      clearToken();
+      setUser(false);
+    }
   };
 
   return (

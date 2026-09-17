@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api from "@/lib/api";
+import api, { setToken } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AuthCallback() {
@@ -25,6 +25,7 @@ export default function AuthCallback() {
     api
       .post("/auth/session", { session_id: sessionId })
       .then(({ data }) => {
+        setToken(data.token);
         setUser(data.user);
         window.history.replaceState(null, "", "/account");
         navigate("/account", { state: { user: data.user } });

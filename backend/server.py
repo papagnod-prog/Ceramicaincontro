@@ -681,7 +681,7 @@ async def google_session(data: SessionInput, response: Response):
         "user_id": user["id"], "session_token": session_token,
         "expires_at": (now_utc() + timedelta(days=7)).isoformat(), "created_at": now_utc().isoformat()})
     set_auth_cookie(response, "session_token", session_token, 604800)
-    return {"user": public_user(user)}
+    return {"user": public_user(user), "token": session_token}
 
 
 @api_router.get("/auth/me")
