@@ -57,7 +57,7 @@ function Shell() {
 
 function App() {
   return (
-    <BrowserRouter basename="/shop">
+    <BrowserRouter basename="/store">
       <AuthProvider>
         <CartProvider>
           <SamplesProvider>

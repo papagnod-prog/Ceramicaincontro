@@ -90,7 +90,7 @@ export default function Checkout() {
         billing: { vat_number: form.vat_number, codice_fiscale: form.codice_fiscale, company: form.company },
         unloading_service: unloadingService,
         payment_method: paymentMethod,
-        origin_url: window.location.origin + "/shop",
+        origin_url: window.location.origin + "/store",
       });
       clear();
       window.location.href = data.checkout_url;

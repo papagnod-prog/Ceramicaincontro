@@ -7,7 +7,7 @@ const SIDE_IMG = "https://images.unsplash.com/photo-1710762797203-707c26233cee?c
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 const googleLogin = () => {
-  const redirectUrl = window.location.origin + "/shop/account";
+  const redirectUrl = window.location.origin + "/store/account";
   window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
 };
 
