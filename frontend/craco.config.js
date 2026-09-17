@@ -1,6 +1,11 @@
 // craco.config.js
 const path = require("path");
-require("dotenv").config();
+// Only load the local dev .env file when NOT building for production —
+// otherwise it clobbers REACT_APP_BACKEND_URL before CRA gets to load
+// .env.production, and every prod build silently points at the sandbox URL.
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 
 // Check if we're in development/preview mode (not production build)
 // Craco sets NODE_ENV=development for start, NODE_ENV=production for build
