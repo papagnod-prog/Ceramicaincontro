@@ -173,9 +173,26 @@ def _brand_wrap(inner: str) -> str:
         '</td></tr>'
         f'<tr><td style="padding:32px">{inner}</td></tr>'
         '<tr><td style="padding:20px 32px;border-top:1px solid #E2DDD5;color:#78716C;font-size:12px">'
-        'Ceramica Incontro S.r.l. — Sassuolo (MO), Italia.<br>'
+        'Ceramica Incontro S.r.l. — Sp 231 km 34,200, 70033 Corato (BA), Italia. '
+        'Tel. 080 898 4326 — P.IVA 00669920720<br>'
         'Non chiediamo mai password o dati della carta via email.'
         '</td></tr></table></td></tr></table>')
+
+
+def _vat_email_rows(order: dict) -> str:
+    rate_p = order.get("vat_rate_products")
+    rate_s = order.get("vat_rate_shipping")
+    total_vat = order.get("vat_amount_total", 0)
+    if rate_p is None or rate_s is None or total_vat <= 0:
+        return ""
+    if rate_p == rate_s:
+        return (f'<tr><td style="padding:8px 0;color:#78716C">IVA ({rate_p:g}%)</td>'
+                f'<td style="padding:8px 0;text-align:right;color:#78716C">&euro; {total_vat:.2f}</td></tr>')
+    return (
+        f'<tr><td style="padding:8px 0;color:#78716C">IVA prodotti ({rate_p:g}%)</td>'
+        f'<td style="padding:8px 0;text-align:right;color:#78716C">&euro; {order.get("vat_amount_products", 0):.2f}</td></tr>'
+        f'<tr><td style="padding:8px 0;color:#78716C">IVA trasporto ({rate_s:g}%)</td>'
+        f'<td style="padding:8px 0;text-align:right;color:#78716C">&euro; {order.get("vat_amount_shipping", 0):.2f}</td></tr>')
 
 
 def _order_email_html(order: dict) -> str:
@@ -218,6 +235,7 @@ def _order_email_html(order: dict) -> str:
         f'<table role="presentation" width="100%" style="margin:20px 0;font-size:14px">{rows}'
         f'<tr><td style="padding:8px 0;color:#78716C">Spedizione ({escape(str(ship.get("name", "")))})</td>'
         f'<td style="padding:8px 0;text-align:right;color:#78716C">&euro; {order.get("shipping_cost", 0):.2f}</td></tr>'
+        f'{_vat_email_rows(order)}'
         f'<tr><td style="padding:10px 0;font-weight:bold;color:#1C1917">Totale</td>'
         f'<td style="padding:10px 0;text-align:right;font-weight:bold;color:#1C1917">&euro; {order.get("total", 0):.2f}</td></tr>'
         f'</table>'
@@ -333,16 +351,14 @@ SHIPPING_OPTIONS = [
     {"id": "standard", "name": "Corriere Standard",
      "free_over": 900.0, "eta": "5-7 giorni lavorativi",
      "description": "Consegna al piano strada in tutta Italia."},
-    {"id": "express", "name": "Corriere Espresso",
-     "free_over": None, "eta": "2-3 giorni lavorativi",
-     "description": "Spedizione prioritaria con tracciamento."},
-    {"id": "pallet", "name": "Spedizione su Bancale",
-     "free_over": None, "eta": "4-6 giorni lavorativi",
-     "description": "Consigliata per grandi quantità (oltre 150 kg)."},
-    {"id": "pickup", "name": "Ritiro in sede — Sassuolo",
+    {"id": "pickup", "name": "Ritiro in sede — Corato",
      "free_over": None, "eta": "Su appuntamento",
-     "description": "Ritiro gratuito presso lo stabilimento di Sassuolo (MO)."},
+     "description": "Ritiro gratuito presso la sede di Corato (BA), Sp 231 km 34,200."},
 ]
+
+# Ids retired from SHIPPING_OPTIONS above (kept here only so old orphaned
+# shipping_rates rows for them get cleaned up on startup).
+_RETIRED_SHIPPING_OPTION_IDS = ["express", "pallet"]
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +393,32 @@ class ShippingRateInput(BaseModel):
 class UnloadingServiceInput(BaseModel):
     price: float = Field(ge=0)
     label: str = "Servizio di scarico (sponda idraulica + trans pallet)"
+
+
+# ---------------------------------------------------------------------------
+# VAT (IVA) settings — admin-configurable, separate rate for products vs shipping
+# ---------------------------------------------------------------------------
+VAT_SETTINGS_ID = "vat_rates"
+DEFAULT_VAT_RATE_PRODUCTS = 22.0
+DEFAULT_VAT_RATE_SHIPPING = 22.0
+
+
+class VatSettingsInput(BaseModel):
+    vat_rate_products: float = Field(ge=0, le=100)
+    vat_rate_shipping: float = Field(ge=0, le=100)
+
+
+async def get_vat_rates():
+    doc = await db.settings.find_one({"id": VAT_SETTINGS_ID}, {"_id": 0})
+    if not doc:
+        return DEFAULT_VAT_RATE_PRODUCTS, DEFAULT_VAT_RATE_SHIPPING
+    return doc.get("vat_rate_products", DEFAULT_VAT_RATE_PRODUCTS), doc.get("vat_rate_shipping", DEFAULT_VAT_RATE_SHIPPING)
+
+
+def compute_vat(subtotal: float, shipping_cost: float, vat_rate_products: float, vat_rate_shipping: float):
+    vat_products = round(subtotal * vat_rate_products / 100, 2)
+    vat_shipping = round(shipping_cost * vat_rate_shipping / 100, 2)
+    return vat_products, vat_shipping, round(vat_products + vat_shipping, 2)
 
 
 def _find_bracket_for_weight(brackets: List[dict], weight_kg: float) -> Optional[dict]:
@@ -789,6 +831,12 @@ async def shipping_unloading_service_public():
     return doc
 
 
+@api_router.get("/vat")
+async def vat_rates_public():
+    vat_rate_products, vat_rate_shipping = await get_vat_rates()
+    return {"vat_rate_products": vat_rate_products, "vat_rate_shipping": vat_rate_shipping}
+
+
 async def _price_cart(items: List[CartItem]):
     subtotal = 0.0
     weight = 0.0
@@ -844,8 +892,13 @@ async def shipping_quote(data: QuoteInput):
     quote = await _quote_shipping(data.shipping_option_id, data.region, data.unloading_service,
                                    subtotal, weight, lines)
     cost = quote["shipping_cost"] if quote["available"] else 0.0
+    vat_rate_products, vat_rate_shipping = await get_vat_rates()
+    vat_products, vat_shipping, vat_total = compute_vat(subtotal, cost, vat_rate_products, vat_rate_shipping)
     return {"subtotal": subtotal, "weight_kg": weight, "shipping_cost": cost,
-            "total": round(subtotal + cost, 2), **quote}
+            "vat_rate_products": vat_rate_products, "vat_rate_shipping": vat_rate_shipping,
+            "vat_amount_products": vat_products, "vat_amount_shipping": vat_shipping,
+            "vat_amount_total": vat_total,
+            "total": round(subtotal + cost + vat_total, 2), **quote}
 
 
 # ---------------------------------------------------------------------------
@@ -927,6 +980,20 @@ async def admin_list_regions(admin: dict = Depends(require_admin)):
     return ITALIAN_REGIONS
 
 
+@api_router.get("/admin/vat")
+async def admin_get_vat(admin: dict = Depends(require_admin)):
+    vat_rate_products, vat_rate_shipping = await get_vat_rates()
+    return {"vat_rate_products": vat_rate_products, "vat_rate_shipping": vat_rate_shipping}
+
+
+@api_router.put("/admin/vat")
+async def admin_set_vat(data: VatSettingsInput, admin: dict = Depends(require_admin)):
+    doc = {"id": VAT_SETTINGS_ID, "vat_rate_products": data.vat_rate_products,
+           "vat_rate_shipping": data.vat_rate_shipping}
+    await db.settings.update_one({"id": VAT_SETTINGS_ID}, {"$set": doc}, upsert=True)
+    return {"vat_rate_products": doc["vat_rate_products"], "vat_rate_shipping": doc["vat_rate_shipping"]}
+
+
 # ---------------------------------------------------------------------------
 # Checkout / Payments
 # ---------------------------------------------------------------------------
@@ -942,7 +1009,10 @@ async def create_checkout(data: CheckoutInput, request: Request):
                                   "Contatta il nostro ufficio spedizioni.")
     shipping_cost = quote["shipping_cost"]
     shipping_opt = next(o for o in SHIPPING_OPTIONS if o["id"] == data.shipping_option_id)
-    total = round(subtotal + shipping_cost, 2)
+    vat_rate_products, vat_rate_shipping = await get_vat_rates()
+    vat_amount_products, vat_amount_shipping, vat_amount_total = compute_vat(
+        subtotal, shipping_cost, vat_rate_products, vat_rate_shipping)
+    total = round(subtotal + shipping_cost + vat_amount_total, 2)
 
     user = await resolve_user(request)
     order_id = str(uuid.uuid4())
@@ -961,6 +1031,9 @@ async def create_checkout(data: CheckoutInput, request: Request):
         "shipping_cost": shipping_cost, "shipping_breakdown": quote["breakdown"],
         "unloading_service": data.unloading_service,
         "unloading_service_price": quote.get("unloading_service_price", 0.0),
+        "vat_rate_products": vat_rate_products, "vat_rate_shipping": vat_rate_shipping,
+        "vat_amount_products": vat_amount_products, "vat_amount_shipping": vat_amount_shipping,
+        "vat_amount_total": vat_amount_total,
         "total": total, "payment_method": payment_method,
         "tracking": "",
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
@@ -980,6 +1053,14 @@ async def create_checkout(data: CheckoutInput, request: Request):
                 "price_data": {"currency": "eur",
                                "product_data": {"name": f"Spedizione — {shipping_opt['name']}"},
                                "unit_amount": int(round(shipping_cost * 100))},
+                "quantity": 1})
+        if vat_amount_total > 0:
+            vat_label = (f"IVA {vat_rate_products:g}%" if vat_rate_products == vat_rate_shipping
+                         else f"IVA {vat_rate_products:g}% prodotti / {vat_rate_shipping:g}% trasporto")
+            stripe_lines.append({
+                "price_data": {"currency": "eur",
+                               "product_data": {"name": vat_label},
+                               "unit_amount": int(round(vat_amount_total * 100))},
                 "quantity": 1})
 
         session = stripe.checkout.Session.create(
@@ -1378,6 +1459,11 @@ async def startup():
         [("shipping_option_id", 1), ("region", 1), ("collection", 1), ("weight_bracket_id", 1)],
         unique=True)
     await db.shipping_weight_brackets.create_index("min_kg")
+    if _RETIRED_SHIPPING_OPTION_IDS:
+        removed = await db.shipping_rates.delete_many(
+            {"shipping_option_id": {"$in": _RETIRED_SHIPPING_OPTION_IDS}})
+        if removed.deleted_count:
+            logger.info(f"Rimosse {removed.deleted_count} tariffe orfane per metodi di spedizione ritirati.")
     await seed_admin()
     await seed_products()
     logger.info("Ceramica Incontro shop ready.")

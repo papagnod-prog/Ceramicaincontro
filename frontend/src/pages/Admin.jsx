@@ -53,6 +53,7 @@ export default function Admin() {
   const [brackets, setBrackets] = useState([]);
   const [rates, setRates] = useState([]);
   const [unloading, setUnloading] = useState({ price: "", label: "" });
+  const [vatRates, setVatRates] = useState({ vat_rate_products: "", vat_rate_shipping: "" });
   const [bracketForm, setBracketForm] = useState({ label: "", min_kg: "", max_kg: "", order: 0 });
   const [editingBracket, setEditingBracket] = useState(null);
   const [rateForm, setRateForm] = useState({ shipping_option_id: "", region: "", collection: "", weight_bracket_id: "", price: "" });
@@ -76,6 +77,7 @@ export default function Admin() {
     api.get("/admin/shipping/weight-brackets").then(({ data }) => setBrackets(data)).catch(() => {});
     api.get("/admin/shipping/rates").then(({ data }) => setRates(data)).catch(() => {});
     api.get("/admin/shipping/unloading-service").then(({ data }) => setUnloading({ price: data.price, label: data.label })).catch(() => {});
+    api.get("/admin/vat").then(({ data }) => setVatRates({ vat_rate_products: data.vat_rate_products, vat_rate_shipping: data.vat_rate_shipping })).catch(() => {});
   };
   useEffect(() => {
     if (user?.role === "admin") { loadAll(); loadShipping(); }
@@ -189,6 +191,21 @@ export default function Admin() {
     try {
       await api.put("/admin/shipping/unloading-service", { price: parseFloat(unloading.price) || 0, label: unloading.label || "Servizio di scarico" });
       toast.success("Servizio di scarico salvato");
+      loadShipping();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
+  // --- VAT rates ---
+  const saveVat = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put("/admin/vat", {
+        vat_rate_products: parseFloat(vatRates.vat_rate_products) || 0,
+        vat_rate_shipping: parseFloat(vatRates.vat_rate_shipping) || 0,
+      });
+      toast.success("Aliquote IVA salvate");
       loadShipping();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
@@ -519,6 +536,29 @@ export default function Admin() {
               </table>
               {brackets.length === 0 && <div className="p-8 text-center text-[#78716C]">Nessuna fascia di peso configurata.</div>}
             </div>
+          </section>
+
+          {/* VAT rates */}
+          <section>
+            <h3 className="font-serif-display text-2xl mb-4">Aliquote IVA</h3>
+            <form onSubmit={saveVat} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-[1fr_1fr_auto] gap-3 items-end" data-testid="admin-vat-form">
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">IVA prodotti (%)</label>
+                <input type="number" step="0.01" min="0" max="100" className={inputCls}
+                  value={vatRates.vat_rate_products}
+                  onChange={(e) => setVatRates((v) => ({ ...v, vat_rate_products: e.target.value }))}
+                  data-testid="admin-vat-products" />
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">IVA trasporto (%)</label>
+                <input type="number" step="0.01" min="0" max="100" className={inputCls}
+                  value={vatRates.vat_rate_shipping}
+                  onChange={(e) => setVatRates((v) => ({ ...v, vat_rate_shipping: e.target.value }))}
+                  data-testid="admin-vat-shipping" />
+              </div>
+              <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors h-fit">Salva</button>
+            </form>
+            <p className="text-xs text-[#78716C] mt-2">I prezzi di prodotti e spedizione sono mostrati IVA esclusa. Queste aliquote vengono applicate al checkout.</p>
           </section>
 
           {/* Unloading service */}

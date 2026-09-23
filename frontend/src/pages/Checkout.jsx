@@ -19,7 +19,11 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [unloadingService, setUnloadingService] = useState(false);
   const [unloadingPrice, setUnloadingPrice] = useState(0);
-  const [quote, setQuote] = useState({ available: true, shipping_cost: 0, breakdown: [] });
+  const [quote, setQuote] = useState({
+    available: true, shipping_cost: 0, breakdown: [],
+    vat_rate_products: 22, vat_rate_shipping: 22,
+    vat_amount_products: 0, vat_amount_shipping: 0, vat_amount_total: 0,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -58,7 +62,8 @@ export default function Checkout() {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const shippingCost = quote.available ? quote.shipping_cost : 0;
-  const total = subtotal + shippingCost;
+  const vatTotal = quote.vat_amount_total || 0;
+  const total = subtotal + shippingCost + vatTotal;
 
   const contactMailto = () => {
     const email = quote.contact_email || "info@ceramicaincontro.it";
@@ -176,7 +181,7 @@ export default function Checkout() {
                           : ""}
                       </span>
                     </div>
-                    <p className="text-xs text-[#78716C] mt-0.5">{o.description} · {o.eta}</p>
+                    <p className="text-xs text-[#78716C] mt-0.5">{o.description} · {o.eta}{shipId === o.id && form.region && quote.available && quote.shipping_cost > 0 ? " · iva esclusa" : ""}</p>
                   </div>
                 </label>
               ))}
@@ -258,16 +263,26 @@ export default function Checkout() {
               ))}
             </div>
             <div className="border-t border-[#E2DDD5] pt-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-[#78716C]">Subtotale</span><span>{eur(subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-[#78716C]">Subtotale <span className="text-[0.65rem]">(iva esclusa)</span></span><span>{eur(subtotal)}</span></div>
               <div className="flex justify-between">
-                <span className="text-[#78716C]">Spedizione</span>
+                <span className="text-[#78716C]">Spedizione <span className="text-[0.65rem]">(iva esclusa)</span></span>
                 <span>{!form.region ? "—" : quote.available ? (shippingCost === 0 ? "Gratis" : eur(shippingCost)) : "N/D"}</span>
               </div>
               <div className="flex justify-between text-xs text-[#78716C]"><span>Peso</span><span>{weight.toFixed(1)} kg</span></div>
+              {quote.available && vatTotal > 0 && (
+                quote.vat_rate_products === quote.vat_rate_shipping ? (
+                  <div className="flex justify-between"><span className="text-[#78716C]">IVA ({quote.vat_rate_products}%)</span><span>{eur(vatTotal)}</span></div>
+                ) : (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#78716C]">IVA prodotti ({quote.vat_rate_products}%)</span><span>{eur(quote.vat_amount_products)}</span></div>
+                    <div className="flex justify-between"><span className="text-[#78716C]">IVA trasporto ({quote.vat_rate_shipping}%)</span><span>{eur(quote.vat_amount_shipping)}</span></div>
+                  </>
+                )
+              )}
               <div className="flex justify-between text-lg font-semibold border-t border-[#E2DDD5] pt-3 mt-2">
                 <span>Totale</span><span data-testid="checkout-total">{eur(total)}</span>
               </div>
-              <p className="text-[0.7rem] text-[#78716C]">IVA inclusa</p>
+              <p className="text-[0.7rem] text-[#78716C]">IVA inclusa nel totale</p>
             </div>
             <button
               type="submit"

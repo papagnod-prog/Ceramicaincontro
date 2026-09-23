@@ -55,9 +55,9 @@ export const ProductCard = ({ product, index = 0 }) => {
         <div className="text-right shrink-0">
           <div className="font-semibold text-[#1C1917]">{eur(product.price)}</div>
           {product.usage === "Rivestimento" || product.usage === "Pavimento" ? (
-            <div className="text-[0.65rem] text-[#78716C]">al m²</div>
+            <div className="text-[0.65rem] text-[#78716C]">al m² · iva esclusa</div>
           ) : (
-            <div className="text-[0.65rem] text-[#78716C]">al pezzo</div>
+            <div className="text-[0.65rem] text-[#78716C]">al pezzo · iva esclusa</div>
           )}
         </div>
       </div>

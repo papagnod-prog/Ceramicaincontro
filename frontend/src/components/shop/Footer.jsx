@@ -8,7 +8,7 @@ export const Footer = () => (
           <div className="font-serif-display text-3xl mb-3">Ceramica Incontro</div>
           <p className="text-[#A8A29E] text-sm max-w-sm leading-relaxed">
             Dal 1976 specializzati nell'esclusiva produzione di battiscopa e rivestimenti
-            in ceramica. L'innovazione del battiscopa, made in Sassuolo.
+            in ceramica. L'innovazione del battiscopa, made in Corato.
           </p>
           <p className="eyebrow text-[#C05A3E] mt-4">fittile_</p>
         </div>
@@ -44,14 +44,16 @@ export const Footer = () => (
         <div>
           <h4 className="eyebrow mb-4 text-[#78716C]">Contatti</h4>
           <ul className="space-y-2 text-sm text-[#D6D3D1]">
-            <li>Sassuolo (MO), Italia</li>
+            <li>Sp 231 km 34,200</li>
+            <li>70033 Corato (BA), Italia</li>
+            <li>Tel. 080 898 4326</li>
             <li>info@ceramicaincontro.it</li>
           </ul>
         </div>
       </div>
       <div className="border-t border-[#3A3733] mt-12 pt-6 text-xs text-[#78716C] flex flex-col sm:flex-row justify-between gap-2">
-        <span>© {new Date().getFullYear()} Ceramica Incontro S.r.l. — P.IVA IT00000000000</span>
-        <span>Prezzi IVA inclusa · Pagamenti sicuri con Stripe</span>
+        <span>© {new Date().getFullYear()} Ceramica Incontro S.r.l. — P.IVA 00669920720</span>
+        <span>Prezzi iva esclusa · Pagamenti sicuri con Stripe</span>
       </div>
     </div>
   </footer>

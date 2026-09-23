@@ -64,7 +64,7 @@ export default function ProductDetail() {
           </h1>
           <div className="flex items-baseline gap-2 mt-5">
             <span className="text-3xl font-semibold">{eur(product.price)}</span>
-            <span className="text-sm text-[#78716C]">{isArea ? "al m² · IVA inclusa" : "al pezzo · IVA inclusa"}</span>
+            <span className="text-sm text-[#78716C]">{isArea ? "al m² · iva esclusa" : "al pezzo · iva esclusa"}</span>
           </div>
           <p className="text-[#57534E] leading-relaxed mt-6">{product.description}</p>
 
