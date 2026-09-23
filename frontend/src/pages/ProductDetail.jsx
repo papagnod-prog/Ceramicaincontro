@@ -12,7 +12,6 @@ export default function ProductDetail() {
   const { addSample, items: sampleItems } = useSamples();
   const [product, setProduct] = useState(null);
   const [qty, setQty] = useState(1);
-  const [area, setArea] = useState("");
   usePageTitle(product ? product.name : "Prodotto");
 
   useEffect(() => {
@@ -26,10 +25,6 @@ export default function ProductDetail() {
   if (product === false)
     return <div className="max-w-7xl mx-auto px-4 py-24 text-center">Prodotto non trovato.</div>;
 
-  const isArea = product.usage === "Rivestimento" || product.usage === "Pavimento";
-  const boxesForArea =
-    isArea && area && product.coverage_sqm > 0 ? Math.ceil(parseFloat(area) / product.coverage_sqm) : null;
-
   const specs = [
     ["Collezione", product.collection],
     ["Formato", product.format],
@@ -37,7 +32,7 @@ export default function ProductDetail() {
     ["Colore", product.color],
     ["Utilizzo", product.usage],
     ["Peso", `${product.weight_kg} kg / pz`],
-    ["Copertura", `${product.coverage_sqm} m² / pz`],
+    ["Pezzi per confezione", `${product.coverage_sqm}`],
   ];
 
   return (
@@ -64,39 +59,9 @@ export default function ProductDetail() {
           </h1>
           <div className="flex items-baseline gap-2 mt-5">
             <span className="text-3xl font-semibold">{eur(product.price)}</span>
-            <span className="text-sm text-[#78716C]">{isArea ? "al m² · iva esclusa" : "al pezzo · iva esclusa"}</span>
+            <span className="text-sm text-[#78716C]">a confezione · iva esclusa</span>
           </div>
           <p className="text-[#57534E] leading-relaxed mt-6">{product.description}</p>
-
-          {isArea && (
-            <div data-testid="pdp-quantity-calculator" className="mt-8 bg-white border border-[#E2DDD5] p-6">
-              <label className="eyebrow block mb-2">Calcolatore m²</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min="0"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  placeholder="Superficie in m²"
-                  className="flex-1 border border-[#E2DDD5] px-4 py-2.5 focus:outline-none focus:border-[#C05A3E]"
-                  data-testid="sqm-input"
-                />
-                {boxesForArea && (
-                  <button
-                    onClick={() => setQty(boxesForArea)}
-                    className="text-sm bg-[#F1EEE8] px-4 py-2.5 hover:bg-[#E2DDD5] transition-colors whitespace-nowrap"
-                  >
-                    ≈ {boxesForArea} pz →
-                  </button>
-                )}
-              </div>
-              {boxesForArea && (
-                <p className="text-xs text-[#78716C] mt-2">
-                  Per {area} m² servono circa {boxesForArea} pezzi ({product.coverage_sqm} m²/pz).
-                </p>
-              )}
-            </div>
-          )}
 
           <div className="flex items-center gap-4 mt-8">
             <div className="flex items-center border border-[#E2DDD5] bg-white">
@@ -130,10 +95,10 @@ export default function ProductDetail() {
             <Beaker className="w-4 h-4" />
             {sampleItems?.some((i) => i.product_id === product.id)
               ? "Campione già richiesto"
-              : "Richiedi campione gratuito"}
+              : "Richiedi campione"}
           </button>
           <p className="text-xs text-[#78716C] mt-2">
-            Prova prima l'acquisto: campioni gratuiti fino a {MAX_SAMPLES} prodotti,{" "}
+            Prova prima l'acquisto: campioni gratuiti fino a {MAX_SAMPLES} prodotti (solo &euro; 6 di spedizione),{" "}
             <Link to="/campioni" className="underline hover:text-[#C05A3E]">vai al carrello campioni</Link>.
           </p>
 

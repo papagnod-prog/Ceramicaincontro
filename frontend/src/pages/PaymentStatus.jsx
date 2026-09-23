@@ -10,6 +10,7 @@ export function PaymentSuccess() {
   const sessionId = params.get("session_id");
   const [status, setStatus] = useState("checking"); // checking, paid, error, timeout
   const [orderNumber, setOrderNumber] = useState(null);
+  const isSample = params.get("kind") === "sample";
 
   useEffect(() => {
     if (!sessionId) {
@@ -55,9 +56,19 @@ export function PaymentSuccess() {
       {status === "paid" && (
         <>
           <CheckCircle2 className="w-16 h-16 text-[#6B7A6E] mx-auto mb-6" strokeWidth={1.5} />
-          <h1 className="font-serif-display text-4xl font-light">Grazie per il tuo ordine!</h1>
-          {orderNumber && <p className="text-[#57534E] mt-3">Numero ordine: <span className="font-semibold">{orderNumber}</span></p>}
-          <p className="text-[#78716C] mt-2">Riceverai una conferma via email con i dettagli della spedizione.</p>
+          <h1 className="font-serif-display text-4xl font-light">
+            {isSample ? "Grazie per la tua richiesta!" : "Grazie per il tuo ordine!"}
+          </h1>
+          {orderNumber && (
+            <p className="text-[#57534E] mt-3">
+              {isSample ? "Numero richiesta" : "Numero ordine"}: <span className="font-semibold">{orderNumber}</span>
+            </p>
+          )}
+          <p className="text-[#78716C] mt-2">
+            {isSample
+              ? "Riceverai una email di conferma e ti contatteremo appena i campioni saranno spediti."
+              : "Riceverai una conferma via email con i dettagli della spedizione."}
+          </p>
           <div className="flex gap-4 justify-center mt-8">
             <Link to="/account" className="bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#C05A3E] transition-colors">I miei ordini</Link>
             <Link to="/prodotti" className="border border-[#E2DDD5] px-6 py-3 text-sm font-medium hover:bg-white transition-colors">Continua lo shopping</Link>

@@ -7,6 +7,7 @@ export default function PaymentConfirmation() {
   const [params] = useSearchParams();
   const orderNumber = params.get("order");
   const method = params.get("method");
+  const isSample = params.get("kind") === "sample";
 
   const isBankTransfer = method === "bank_transfer";
   const isCash = method === "cash";
@@ -14,10 +15,12 @@ export default function PaymentConfirmation() {
   return (
     <div data-testid="payment-confirmation-page" className="max-w-lg mx-auto px-4 py-24 text-center">
       <CheckCircle2 className="w-16 h-16 text-[#6B7A6E] mx-auto mb-6" strokeWidth={1.5} />
-      <h1 className="font-serif-display text-4xl font-light">Grazie per il tuo ordine!</h1>
+      <h1 className="font-serif-display text-4xl font-light">
+        {isSample ? "Grazie per la tua richiesta!" : "Grazie per il tuo ordine!"}
+      </h1>
       {orderNumber && (
         <p className="text-[#57534E] mt-3">
-          Numero ordine: <span className="font-semibold">{orderNumber}</span>
+          {isSample ? "Numero richiesta" : "Numero ordine"}: <span className="font-semibold">{orderNumber}</span>
         </p>
       )}
 
@@ -28,8 +31,9 @@ export default function PaymentConfirmation() {
             <span className="text-sm font-medium">Bonifico bancario</span>
           </div>
           <p className="text-sm text-[#78716C]">
-            Ti abbiamo inviato un'email con l'IBAN e i dettagli per completare il bonifico.
-            L'ordine verrà preparato non appena riceveremo il pagamento.
+            {isSample
+              ? "Ti abbiamo inviato un'email con l'IBAN e i dettagli per completare il bonifico del contributo spese di spedizione (€6). I campioni verranno spediti non appena riceveremo il pagamento."
+              : "Ti abbiamo inviato un'email con l'IBAN e i dettagli per completare il bonifico. L'ordine verrà preparato non appena riceveremo il pagamento."}
           </p>
         </div>
       )}

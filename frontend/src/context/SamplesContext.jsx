@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 const SamplesContext = createContext(null);
 const STORAGE_KEY = "ci_samples_v1";
-export const MAX_SAMPLES = 5;
+export const MAX_SAMPLES = 3;
 
 export const SamplesProvider = ({ children }) => {
   const [items, setItems] = useState(() => {
@@ -24,7 +24,7 @@ export const SamplesProvider = ({ children }) => {
       return;
     }
     if (items.length >= MAX_SAMPLES) {
-      toast.error(`Puoi richiedere al massimo ${MAX_SAMPLES} campioni gratuiti`);
+      toast.error(`Puoi richiedere al massimo ${MAX_SAMPLES} campioni`);
       return;
     }
     setItems((prev) => [

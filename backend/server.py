@@ -272,11 +272,33 @@ def _sample_email_html(req: dict) -> str:
         for it in req["items"]
     )
     addr = req.get("shipping_address", {})
+    payment_method = req.get("payment_method", "card")
+    fee = req.get("shipping_fee", SAMPLE_SHIPPING_FEE)
+
+    if payment_method == "bank_transfer":
+        intro = (f'abbiamo ricevuto la tua richiesta di campioni <strong>{escape(str(req["request_number"]))}</strong>. '
+                  f'I campioni sono gratuiti, ma il contributo spese di spedizione forfettario di &euro; {fee:.2f} '
+                  'va saldato tramite bonifico bancario con i dati seguenti, indicando il numero di richiesta come causale. '
+                  'Spediremo i campioni non appena riceveremo il pagamento.')
+        payment_note = (
+            f'<table role="presentation" width="100%" style="margin:16px 0;font-size:14px;background:#F8F6F2;padding:12px">'
+            f'<tr><td style="padding:4px 0;color:#78716C">Beneficiario</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_HOLDER)}</td></tr>'
+            f'<tr><td style="padding:4px 0;color:#78716C">IBAN</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_IBAN)}</td></tr>'
+            + (f'<tr><td style="padding:4px 0;color:#78716C">BIC/SWIFT</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_BIC)}</td></tr>' if BANK_TRANSFER_BIC else "")
+            + f'<tr><td style="padding:4px 0;color:#78716C">Importo</td><td style="padding:4px 0;text-align:right;color:#1C1917">&euro; {fee:.2f}</td></tr>'
+            + f'<tr><td style="padding:4px 0;color:#78716C">Causale</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(str(req["request_number"]))}</td></tr>'
+            f'</table>')
+    else:
+        intro = (f'abbiamo ricevuto la tua richiesta di campioni <strong>{escape(str(req["request_number"]))}</strong> '
+                  f'e il pagamento del contributo spese di spedizione (&euro; {fee:.2f}) &egrave; stato confermato. '
+                  'Ti contatteremo appena i campioni saranno pronti per la spedizione.')
+        payment_note = ""
+
     inner = (
         f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Richiesta campioni ricevuta</h1>'
         f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(req.get("customer", {}).get("name", "")))}, '
-        f'abbiamo ricevuto la tua richiesta di campioni gratuiti <strong>{escape(str(req["request_number"]))}</strong>. '
-        f'Ti contatteremo appena i campioni saranno pronti per la spedizione.</p>'
+        f'{intro}</p>'
+        f'{payment_note}'
         f'<table role="presentation" width="100%" style="margin:20px 0;font-size:14px">{rows}</table>'
         f'<p style="color:#57534E;font-size:14px;line-height:1.6"><strong>Spedizione a:</strong><br>'
         f'{escape(str(addr.get("line1", "")))}<br>{escape(str(addr.get("postal_code", "")))} '
@@ -341,7 +363,8 @@ def now_utc():
     return datetime.now(timezone.utc)
 
 
-MAX_SAMPLE_ITEMS = 5
+MAX_SAMPLE_ITEMS = 3
+SAMPLE_SHIPPING_FEE = 6.0
 
 
 # ---------------------------------------------------------------------------
@@ -555,6 +578,8 @@ class SampleRequestInput(BaseModel):
     customer: CustomerInfo
     shipping_address: ShippingAddress
     note: Optional[str] = ""
+    payment_method: str = "card"
+    origin_url: str = ""
 
 
 class SampleStatusInput(BaseModel):
@@ -1101,10 +1126,34 @@ async def create_checkout(data: CheckoutInput, request: Request):
 
 
 async def _mark_paid(session_id: str, payment_intent=None):
+    tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
     await db.payment_transactions.update_one(
         {"session_id": session_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"status": "completed", "payment_status": "paid",
                   "stripe_payment_intent_id": payment_intent, "updated_at": now_utc()}})
+
+    if tx and tx.get("kind") == "sample":
+        res = await db.sample_requests.update_one(
+            {"session_id": session_id, "payment_status": {"$ne": "paid"}},
+            {"$set": {"payment_status": "paid", "status": "requested", "updated_at": now_utc().isoformat()}})
+        if res.modified_count:
+            req = await db.sample_requests.find_one({"session_id": session_id}, {"_id": 0})
+            if req and not req.get("email_sent"):
+                await db.sample_requests.update_one({"id": req["id"]}, {"$set": {"email_sent": True}})
+                await _safe_send(req["customer"]["email"],
+                                 f"Richiesta campioni confermata {req['request_number']} — Ceramica Incontro",
+                                 _sample_email_html(req))
+                if os.environ.get("ADMIN_EMAIL"):
+                    await _safe_send(os.environ["ADMIN_EMAIL"],
+                                     f"Nuova richiesta campioni {req['request_number']}",
+                                     _admin_notify_email_html("Nuova richiesta campioni (pagata)", [
+                                         ("Numero", req["request_number"]), ("Cliente", req["customer"]["name"]),
+                                         ("Email", req["customer"]["email"]),
+                                         ("Campioni", ", ".join(i["name"] for i in req["items"])),
+                                         ("Pagamento", "Carta (confermato)"),
+                                     ]))
+        return
+
     res = await db.orders.update_one(
         {"session_id": session_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"payment_status": "paid", "status": "processing", "updated_at": now_utc().isoformat()}})
@@ -1131,9 +1180,11 @@ async def payment_status(session_id: str):
         except stripe.error.StripeError:
             pass
     order = await db.orders.find_one({"session_id": session_id}, {"_id": 0})
+    sample = await db.sample_requests.find_one({"session_id": session_id}, {"_id": 0})
     return {"session_id": record["session_id"], "status": record["status"],
             "payment_status": record["payment_status"],
-            "order_number": order["order_number"] if order else None}
+            "order_number": order["order_number"] if order else (sample["request_number"] if sample else None),
+            "kind": record.get("kind", "order")}
 
 
 @api_router.post("/stripe/webhook")
@@ -1149,6 +1200,8 @@ async def stripe_webhook(request: Request):
         await _mark_paid(obj["id"], obj.get("payment_intent"))
     elif t == "checkout.session.expired":
         await db.orders.update_one({"session_id": obj["id"]},
+                                   {"$set": {"status": "cancelled", "payment_status": "expired"}})
+        await db.sample_requests.update_one({"session_id": obj["id"]},
                                    {"$set": {"status": "cancelled", "payment_status": "expired"}})
     elif t == "charge.refunded":
         pi = obj.get("payment_intent")
@@ -1234,7 +1287,10 @@ async def request_samples(data: SampleRequestInput, request: Request):
     if not items:
         raise HTTPException(400, "Seleziona almeno un campione")
     if len(items) > MAX_SAMPLE_ITEMS:
-        raise HTTPException(400, f"Puoi richiedere al massimo {MAX_SAMPLE_ITEMS} campioni gratuiti")
+        raise HTTPException(400, f"Puoi richiedere al massimo {MAX_SAMPLE_ITEMS} campioni")
+
+    payment_method = data.payment_method if data.payment_method in ("card", "bank_transfer") else "card"
+    origin_url = data.origin_url or FRONTEND_URL
 
     user = await resolve_user(request)
     req_id = str(uuid.uuid4())
@@ -1245,13 +1301,43 @@ async def request_samples(data: SampleRequestInput, request: Request):
         "customer": data.customer.model_dump(),
         "shipping_address": data.shipping_address.model_dump(),
         "note": data.note or "", "items": items,
-        "status": "requested", "tracking": "",
+        "payment_method": payment_method, "shipping_fee": SAMPLE_SHIPPING_FEE,
+        "tracking": "",
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
+
+    if payment_method == "card":
+        session = stripe.checkout.Session.create(
+            line_items=[{
+                "price_data": {"currency": "eur",
+                               "product_data": {"name": "Spedizione campioni (forfait) — Ceramica Incontro"},
+                               "unit_amount": int(round(SAMPLE_SHIPPING_FEE * 100))},
+                "quantity": 1}],
+            mode="payment",
+            customer_email=data.customer.email,
+            success_url=f"{origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}&kind=sample",
+            cancel_url=f"{origin_url}/payment/cancel",
+            metadata={"sample_request_id": req_id, "request_number": req_number, "kind": "sample"})
+
+        req.update({"status": "pending_payment", "payment_status": "pending", "session_id": session.id})
+        await db.sample_requests.insert_one(req)
+        await db.payment_transactions.insert_one({
+            "session_id": session.id, "kind": "sample", "sample_request_id": req_id,
+            "user_id": user["id"] if user else None,
+            "amount": SAMPLE_SHIPPING_FEE, "currency": "eur", "status": "initiated", "payment_status": "pending",
+            "created_at": now_utc(), "updated_at": now_utc()})
+
+        return {"checkout_url": session.url, "session_id": session.id, "request_number": req_number,
+                "payment_method": payment_method}
+
+    # Bank transfer: request registered immediately, awaiting payment offline.
+    req.update({"status": "requested", "payment_status": "awaiting_transfer", "session_id": None})
     await db.sample_requests.insert_one(req)
 
-    await _safe_send(data.customer.email,
-                     f"Richiesta campioni ricevuta {req_number} — Ceramica Incontro",
-                     _sample_email_html(req))
+    if not req.get("email_sent"):
+        await db.sample_requests.update_one({"id": req_id}, {"$set": {"email_sent": True}})
+        await _safe_send(data.customer.email,
+                         f"Richiesta campioni ricevuta {req_number} — Ceramica Incontro",
+                         _sample_email_html(req))
     if os.environ.get("ADMIN_EMAIL"):
         await _safe_send(os.environ["ADMIN_EMAIL"],
                          f"Nuova richiesta campioni {req_number}",
@@ -1259,8 +1345,10 @@ async def request_samples(data: SampleRequestInput, request: Request):
                              ("Numero", req_number), ("Cliente", data.customer.name),
                              ("Email", data.customer.email), ("Telefono", data.customer.phone or "-"),
                              ("Campioni", ", ".join(i["name"] for i in items)),
+                             ("Pagamento", "Bonifico bancario (in attesa)"),
                          ]))
-    return {"request_number": req_number, "id": req_id}
+    return {"checkout_url": f"{origin_url}/payment/confirmation?order={req_number}&method=bank_transfer&kind=sample",
+            "session_id": None, "request_number": req_number, "payment_method": payment_method}
 
 
 @api_router.get("/admin/samples")

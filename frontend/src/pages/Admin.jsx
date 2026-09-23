@@ -19,7 +19,8 @@ const STATUS_LABEL = {
 
 const SAMPLE_STATUS_OPTS = ["requested", "preparing", "shipped", "delivered"];
 const SAMPLE_STATUS_LABEL = {
-  requested: "Richiesto", preparing: "In preparazione", shipped: "Spedito", delivered: "Consegnato",
+  pending_payment: "In attesa di pagamento", requested: "Richiesto", preparing: "In preparazione",
+  shipped: "Spedito", delivered: "Consegnato", cancelled: "Annullato (pagamento scaduto)",
 };
 
 const QUOTE_STATUS_OPTS = ["new", "in_review", "quoted", "won", "lost"];
@@ -56,7 +57,8 @@ export default function Admin() {
   const [vatRates, setVatRates] = useState({ vat_rate_products: "", vat_rate_shipping: "" });
   const [bracketForm, setBracketForm] = useState({ label: "", min_kg: "", max_kg: "", order: 0 });
   const [editingBracket, setEditingBracket] = useState(null);
-  const [rateForm, setRateForm] = useState({ shipping_option_id: "", region: "", collection: "", weight_bracket_id: "", price: "" });
+  const [rateForm, setRateForm] = useState({ shipping_option_id: "", regions: [], collection: "", weight_bracket_id: "", price: "" });
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false);
   const [rateFilter, setRateFilter] = useState({ shipping_option_id: "", collection: "" });
 
   useEffect(() => {
@@ -215,19 +217,29 @@ export default function Admin() {
   // --- Shipping: rates ---
   const saveRate = async (e) => {
     e.preventDefault();
-    const { shipping_option_id, region, collection, weight_bracket_id, price } = rateForm;
-    if (!shipping_option_id || !region || !collection || !weight_bracket_id || price === "") {
-      toast.error("Compila tutti i campi della tariffa");
+    const { shipping_option_id, regions: selectedRegions, collection, weight_bracket_id, price } = rateForm;
+    if (!shipping_option_id || !selectedRegions?.length || !collection || !weight_bracket_id || price === "") {
+      toast.error("Compila tutti i campi della tariffa (seleziona almeno una regione)");
       return;
     }
     try {
-      await api.post("/admin/shipping/rates", { shipping_option_id, region, collection, weight_bracket_id, price: parseFloat(price) });
-      toast.success("Tariffa salvata");
+      await Promise.all(
+        selectedRegions.map((region) =>
+          api.post("/admin/shipping/rates", { shipping_option_id, region, collection, weight_bracket_id, price: parseFloat(price) })
+        )
+      );
+      toast.success(selectedRegions.length > 1 ? `Tariffa salvata per ${selectedRegions.length} regioni` : "Tariffa salvata");
       setRateForm((f) => ({ ...f, price: "" }));
       loadShipping();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     }
+  };
+  const toggleRateRegion = (r) => {
+    setRateForm((f) => ({
+      ...f,
+      regions: f.regions.includes(r) ? f.regions.filter((x) => x !== r) : [...f.regions, r],
+    }));
   };
   const deleteRate = async (id) => {
     await api.delete(`/admin/shipping/rates/${id}`);
@@ -400,6 +412,7 @@ export default function Admin() {
                 <th className="px-4 py-3 font-medium">Richiesta</th>
                 <th className="px-4 py-3 font-medium">Cliente</th>
                 <th className="px-4 py-3 font-medium">Campioni</th>
+                <th className="px-4 py-3 font-medium">Spedizione (&euro;6)</th>
                 <th className="px-4 py-3 font-medium">Stato</th>
                 <th className="px-4 py-3 font-medium">Tracking</th>
               </tr>
@@ -417,6 +430,10 @@ export default function Admin() {
                   </td>
                   <td className="px-4 py-3 text-[#78716C]">
                     {(s.items || []).map((it) => it.name).join(", ")}
+                  </td>
+                  <td className="px-4 py-3 text-[#78716C]">
+                    {s.payment_method === "bank_transfer" ? "Bonifico" : "Carta"} &middot;{" "}
+                    {s.payment_status === "paid" ? "Pagato" : s.payment_status === "awaiting_transfer" ? "In attesa" : s.payment_status === "pending" ? "In corso" : s.payment_status || "-"}
                   </td>
                   <td className="px-4 py-3 min-w-[160px]">
                     <Select value={s.status} onValueChange={(v) => updateSampleStatus(s, v)}>
@@ -588,12 +605,37 @@ export default function Admin() {
                   {shippingMethods.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
                 </select>
               </div>
-              <div>
-                <label className="text-xs text-[#78716C] block mb-1">Regione</label>
-                <select className={inputCls} value={rateForm.region} onChange={(e) => setRateForm((f) => ({ ...f, region: e.target.value }))}>
-                  <option value="">Seleziona…</option>
-                  {regions.map((r) => (<option key={r} value={r}>{r}</option>))}
-                </select>
+              <div className="relative">
+                <label className="text-xs text-[#78716C] block mb-1">Regioni</label>
+                <button
+                  type="button"
+                  data-testid="admin-rate-regions-toggle"
+                  onClick={() => setRegionPickerOpen((o) => !o)}
+                  className={inputCls + " text-left flex items-center justify-between"}
+                >
+                  <span className="truncate">
+                    {rateForm.regions.length === 0
+                      ? "Seleziona…"
+                      : rateForm.regions.length === 1
+                      ? rateForm.regions[0]
+                      : `${rateForm.regions.length} regioni selezionate`}
+                  </span>
+                  <span className="text-[#78716C]">▾</span>
+                </button>
+                {regionPickerOpen && (
+                  <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-[#E2DDD5] shadow-lg p-2" data-testid="admin-rate-regions-list">
+                    <div className="flex justify-between mb-1 px-1">
+                      <button type="button" className="text-xs text-[#C05A3E] hover:underline" onClick={() => setRateForm((f) => ({ ...f, regions: [...regions] }))}>Seleziona tutte</button>
+                      <button type="button" className="text-xs text-[#78716C] hover:underline" onClick={() => setRateForm((f) => ({ ...f, regions: [] }))}>Deseleziona</button>
+                    </div>
+                    {regions.map((r) => (
+                      <label key={r} className="flex items-center gap-2 px-1 py-1 text-sm hover:bg-[#F1EEE8] cursor-pointer">
+                        <input type="checkbox" checked={rateForm.regions.includes(r)} onChange={() => toggleRateRegion(r)} className="accent-[#C05A3E]" />
+                        {r}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-xs text-[#78716C] block mb-1">Categoria</label>
@@ -708,7 +750,7 @@ export default function Admin() {
               <input className={inputCls} placeholder="Utilizzo" value={form.usage} onChange={setF("usage")} />
               <input className={inputCls} type="number" step="0.01" placeholder="Prezzo €" required value={form.price} onChange={setF("price")} data-testid="pf-price" />
               <input className={inputCls} type="number" step="0.01" placeholder="Peso kg" value={form.weight_kg} onChange={setF("weight_kg")} data-testid="pf-weight" />
-              <input className={inputCls} type="number" step="0.01" placeholder="Copertura m²/pz" value={form.coverage_sqm} onChange={setF("coverage_sqm")} />
+              <input className={inputCls} type="number" step="1" placeholder="Pezzi per confezione" value={form.coverage_sqm} onChange={setF("coverage_sqm")} />
               <input className={inputCls} type="number" placeholder="Stock" value={form.stock} onChange={setF("stock")} />
               <input className={inputCls + " col-span-2"} placeholder="URL immagine" value={form.image} onChange={setF("image")} data-testid="pf-image" />
               <textarea className={inputCls + " col-span-2"} rows={3} placeholder="Descrizione" value={form.description} onChange={setF("description")} />

@@ -28,7 +28,7 @@ export const Footer = () => (
           <h4 className="eyebrow mb-4 text-[#78716C]">Servizi</h4>
           <ul className="space-y-2 text-sm text-[#D6D3D1]">
             <li>
-              <Link to="/campioni" className="hover:text-white transition-colors">Campioni gratuiti</Link>
+              <Link to="/campioni" className="hover:text-white transition-colors">Campioni</Link>
             </li>
             <li>
               <Link to="/preventivo-progetto" className="hover:text-white transition-colors">Preventivi Progetto</Link>

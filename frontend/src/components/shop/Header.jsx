@@ -62,7 +62,7 @@ export const Header = () => {
               data-testid="samples-trigger"
               onClick={() => navigate("/campioni")}
               className="relative p-2.5 rounded-full hover:bg-[#F1EEE8] transition-colors"
-              aria-label="Campioni gratuiti"
+              aria-label="Campioni"
             >
               <Beaker className="w-5 h-5 text-[#1C1917]" />
               {sampleCount > 0 && (
@@ -142,7 +142,7 @@ export const Header = () => {
             </Link>
           ))}
           <Link to="/campioni" onClick={() => setMobileOpen(false)} className="block py-2 text-[#1C1917] font-medium">
-            Campioni gratuiti
+            Campioni
           </Link>
           <Link to="/preventivo-progetto" onClick={() => setMobileOpen(false)} className="block py-2 text-[#C05A3E] font-medium">
             Preventivi Progetto

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { X, ArrowLeft, Beaker } from "lucide-react";
+import { X, ArrowLeft, Landmark, CreditCard } from "lucide-react";
 import { useSamples, MAX_SAMPLES } from "@/context/SamplesContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { usePageTitle } from "@/hooks/usePageTitle";
+
+const SAMPLE_SHIPPING_FEE = 6;
 
 const EMPTY_FORM = {
   name: "", email: "", phone: "",
@@ -13,11 +15,11 @@ const EMPTY_FORM = {
 };
 
 export default function Samples() {
-  usePageTitle("Campioni gratuiti");
+  usePageTitle("Campioni");
   const { items, removeSample, clear } = useSamples();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [paymentMethod, setPaymentMethod] = useState("card");
   const [sending, setSending] = useState(false);
-  const [done, setDone] = useState(null);
 
   const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -34,34 +36,18 @@ export default function Samples() {
           province: form.province, country: "IT",
         },
         note: form.note,
+        payment_method: paymentMethod,
+        origin_url: window.location.origin + "/store",
       });
-      setDone(data.request_number);
       clear();
-      toast.success("Richiesta campioni inviata!");
+      window.location.href = data.checkout_url;
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
-    } finally {
       setSending(false);
     }
   };
 
   const inputCls = "w-full bg-white border border-[#E2DDD5] px-3 py-2.5 focus:outline-none focus:border-[#C05A3E] text-sm";
-
-  if (done) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-24 text-center" data-testid="samples-confirmation">
-        <Beaker className="w-10 h-10 mx-auto text-[#C05A3E] mb-4" />
-        <h1 className="font-serif-display text-3xl mb-3">Richiesta ricevuta</h1>
-        <p className="text-[#57534E]">
-          Grazie! La tua richiesta campioni <strong>{done}</strong> è stata registrata. Ti abbiamo
-          inviato una email di conferma e ti contatteremo appena i campioni saranno spediti.
-        </p>
-        <Link to="/prodotti" className="inline-block mt-8 bg-[#1C1917] text-white px-6 py-3 text-sm font-medium hover:bg-[#3A3733] transition-colors">
-          Torna al negozio
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10" data-testid="samples-page">
@@ -69,15 +55,16 @@ export default function Samples() {
         <ArrowLeft className="w-4 h-4" /> Torna al negozio
       </Link>
       <p className="eyebrow text-[#C05A3E] mb-2">Prova prima di acquistare</p>
-      <h1 className="font-serif-display text-4xl font-light mb-3">Richiesta Campioni Gratuiti</h1>
+      <h1 className="font-serif-display text-4xl font-light mb-3">Richiesta Campioni</h1>
       <p className="text-[#57534E] mb-10 max-w-2xl">
-        Seleziona fino a {MAX_SAMPLES} prodotti dal catalogo per ricevere a casa un campione gratuito
-        prima dell'acquisto. Nessun costo, nessun impegno.
+        Seleziona fino a {MAX_SAMPLES} prodotti dal catalogo per ricevere a casa un campione prima
+        dell'acquisto. I campioni sono gratuiti: si paga solo un contributo spese di spedizione
+        forfettario di &euro; {SAMPLE_SHIPPING_FEE.toFixed(2)}.
       </p>
 
       {items.length === 0 ? (
         <div className="bg-white border border-[#E2DDD5] p-10 text-center text-[#78716C]" data-testid="samples-empty">
-          Non hai ancora selezionato campioni. Vai su un prodotto e clicca "Richiedi campione gratuito".
+          Non hai ancora selezionato campioni. Vai su un prodotto e clicca "Richiedi campione".
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-10">
@@ -100,6 +87,10 @@ export default function Samples() {
                 </div>
               ))}
             </div>
+            <div className="mt-4 flex justify-between text-sm bg-white border border-[#E2DDD5] p-3">
+              <span className="text-[#78716C]">Contributo spedizione</span>
+              <span className="font-medium">&euro; {SAMPLE_SHIPPING_FEE.toFixed(2)}</span>
+            </div>
           </div>
 
           <form onSubmit={submit} className="bg-white border border-[#E2DDD5] p-6 space-y-3" data-testid="samples-form">
@@ -114,9 +105,34 @@ export default function Samples() {
               <input className={inputCls} placeholder="Prov." value={form.province} onChange={setF("province")} />
             </div>
             <textarea className={inputCls} rows={3} placeholder="Note (opzionale)" value={form.note} onChange={setF("note")} />
+
+            <div className="pt-2 space-y-2">
+              <p className="text-xs text-[#78716C] mb-1">Metodo di pagamento del contributo spese (&euro; {SAMPLE_SHIPPING_FEE.toFixed(2)})</p>
+              <label
+                data-testid="sample-payment-card"
+                className={`flex items-center gap-3 border p-3 cursor-pointer transition-colors ${
+                  paymentMethod === "card" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
+                }`}
+              >
+                <input type="radio" name="sample-payment" checked={paymentMethod === "card"} onChange={() => setPaymentMethod("card")} className="accent-[#C05A3E]" />
+                <CreditCard className="w-4 h-4 text-[#78716C]" />
+                <span className="text-sm font-medium">Carta</span>
+              </label>
+              <label
+                data-testid="sample-payment-bank_transfer"
+                className={`flex items-center gap-3 border p-3 cursor-pointer transition-colors ${
+                  paymentMethod === "bank_transfer" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
+                }`}
+              >
+                <input type="radio" name="sample-payment" checked={paymentMethod === "bank_transfer"} onChange={() => setPaymentMethod("bank_transfer")} className="accent-[#C05A3E]" />
+                <Landmark className="w-4 h-4 text-[#78716C]" />
+                <span className="text-sm font-medium">Bonifico bancario</span>
+              </label>
+            </div>
+
             <button type="submit" disabled={sending} data-testid="samples-submit"
               className="w-full bg-[#C05A3E] text-white py-3.5 text-sm font-semibold hover:bg-[#A64B32] transition-colors disabled:opacity-60">
-              {sending ? "Invio in corso…" : "Invia richiesta campioni gratuiti"}
+              {sending ? "Attendere…" : paymentMethod === "card" ? "Procedi al pagamento" : "Invia richiesta campioni"}
             </button>
           </form>
         </div>
