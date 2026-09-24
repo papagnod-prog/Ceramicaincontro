@@ -452,22 +452,29 @@ def _find_bracket_for_weight(brackets: List[dict], weight_kg: float) -> Optional
 
 
 async def compute_regional_shipping(shipping_option_id: str, region: str, lines: List[dict]):
-    """Groups cart lines by collection, resolves a rate per collection group using
-    region + weight-bracket + collection, and sums the results.
+    """Resolves the weight bracket once from the TOTAL weight of the whole cart (not
+    per article/collection), then for each collection present in the cart looks up a
+    rate for region + that single total-weight bracket + collection, and sums the results.
     Returns (total_cost, breakdown, all_available)."""
     brackets = await db.shipping_weight_brackets.find({}, {"_id": 0}).to_list(200)
+
     by_collection: dict = {}
+    total_weight = 0.0
     for ln in lines:
         c = ln.get("collection", "")
+        w = ln.get("weight_kg", 0) * ln.get("quantity", 1)
         by_collection.setdefault(c, 0.0)
-        by_collection[c] += ln.get("weight_kg", 0) * ln.get("quantity", 1)
+        by_collection[c] += w
+        total_weight += w
+
+    bracket = _find_bracket_for_weight(brackets, total_weight)
 
     breakdown = []
     total = 0.0
     all_available = True
     for collection, weight in by_collection.items():
-        bracket = _find_bracket_for_weight(brackets, weight)
         entry = {"collection": collection, "weight_kg": round(weight, 2),
+                  "cart_weight_kg": round(total_weight, 2),
                   "bracket_id": bracket["id"] if bracket else None,
                   "bracket_label": bracket["label"] if bracket else None,
                   "available": False, "price": 0.0}
