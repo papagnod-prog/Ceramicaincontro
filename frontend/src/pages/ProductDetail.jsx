@@ -5,6 +5,7 @@ import { useCart } from "@/context/CartContext";
 import { useSamples, MAX_SAMPLES } from "@/context/SamplesContext";
 import { Minus, Plus, ArrowLeft, Check, Beaker } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import ProductGallery from "@/components/shop/ProductGallery";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -42,15 +43,11 @@ export default function ProductDetail() {
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        <div className="bg-[#F1EEE8] aspect-square overflow-hidden">
-          {product.image ? (
-            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center font-serif-display text-8xl text-[#C0B9AE]">
-              {product.collection?.[0]}
-            </div>
-          )}
-        </div>
+        <ProductGallery
+          images={[product.image, ...(product.gallery || [])]}
+          collectionInitial={product.collection?.[0]}
+          alt={product.name}
+        />
 
         <div>
           <p className="eyebrow text-[#C05A3E] mb-3">{product.collection}</p>

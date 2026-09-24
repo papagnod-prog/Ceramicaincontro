@@ -31,7 +31,7 @@ const QUOTE_STATUS_LABEL = {
 
 const EMPTY_PRODUCT = {
   name: "", collection: "SMUSSO", description: "", price: "", format: "", finish: "Matt",
-  color: "", usage: "Battiscopa", weight_kg: "", coverage_sqm: "", stock: 100, image: "", featured: false,
+  color: "", usage: "Battiscopa", weight_kg: "", coverage_sqm: "", stock: 100, image: "", image2: "", image3: "", featured: false,
 };
 
 export default function Admin() {
@@ -57,8 +57,9 @@ export default function Admin() {
   const [vatRates, setVatRates] = useState({ vat_rate_products: "", vat_rate_shipping: "" });
   const [bracketForm, setBracketForm] = useState({ label: "", min_kg: "", max_kg: "", order: 0 });
   const [editingBracket, setEditingBracket] = useState(null);
-  const [rateForm, setRateForm] = useState({ shipping_option_id: "", regions: [], collection: "", weight_bracket_id: "", price: "" });
+  const [rateForm, setRateForm] = useState({ shipping_option_id: "", regions: [], categories: [], weight_bracket_id: "", price: "" });
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [rateFilter, setRateFilter] = useState({ shipping_option_id: "", collection: "" });
 
   useEffect(() => {
@@ -93,20 +94,22 @@ export default function Admin() {
     setEditing("new");
   };
   const openEdit = (p) => {
-    setForm({ ...EMPTY_PRODUCT, ...p });
+    const gallery = p.gallery || [];
+    setForm({ ...EMPTY_PRODUCT, ...p, image2: gallery[0] || "", image3: gallery[1] || "" });
     setEditing(p.id);
   };
   const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const saveProduct = async (e) => {
     e.preventDefault();
+    const { image2, image3, ...rest } = form;
     const payload = {
-      ...form,
+      ...rest,
       price: parseFloat(form.price),
       weight_kg: parseFloat(form.weight_kg) || 0,
       coverage_sqm: parseFloat(form.coverage_sqm) || 1,
       stock: parseInt(form.stock) || 0,
-      gallery: [],
+      gallery: [image2, image3].filter((u) => u && u.trim()),
     };
     try {
       if (editing === "new") await api.post("/admin/products", payload);
@@ -217,18 +220,20 @@ export default function Admin() {
   // --- Shipping: rates ---
   const saveRate = async (e) => {
     e.preventDefault();
-    const { shipping_option_id, regions: selectedRegions, collection, weight_bracket_id, price } = rateForm;
-    if (!shipping_option_id || !selectedRegions?.length || !collection || !weight_bracket_id || price === "") {
-      toast.error("Compila tutti i campi della tariffa (seleziona almeno una regione)");
+    const { shipping_option_id, regions: selectedRegions, categories: selectedCategories, weight_bracket_id, price } = rateForm;
+    if (!shipping_option_id || !selectedRegions?.length || !selectedCategories?.length || !weight_bracket_id || price === "") {
+      toast.error("Compila tutti i campi della tariffa (seleziona almeno una regione e una categoria)");
       return;
     }
     try {
+      const combos = [];
+      selectedRegions.forEach((region) => selectedCategories.forEach((collection) => combos.push({ region, collection })));
       await Promise.all(
-        selectedRegions.map((region) =>
+        combos.map(({ region, collection }) =>
           api.post("/admin/shipping/rates", { shipping_option_id, region, collection, weight_bracket_id, price: parseFloat(price) })
         )
       );
-      toast.success(selectedRegions.length > 1 ? `Tariffa salvata per ${selectedRegions.length} regioni` : "Tariffa salvata");
+      toast.success(combos.length > 1 ? `Tariffa salvata per ${combos.length} combinazioni regione/categoria` : "Tariffa salvata");
       setRateForm((f) => ({ ...f, price: "" }));
       loadShipping();
     } catch (err) {
@@ -239,6 +244,12 @@ export default function Admin() {
     setRateForm((f) => ({
       ...f,
       regions: f.regions.includes(r) ? f.regions.filter((x) => x !== r) : [...f.regions, r],
+    }));
+  };
+  const toggleRateCategory = (c) => {
+    setRateForm((f) => ({
+      ...f,
+      categories: f.categories.includes(c) ? f.categories.filter((x) => x !== c) : [...f.categories, c],
     }));
   };
   const deleteRate = async (id) => {
@@ -637,12 +648,37 @@ export default function Admin() {
                   </div>
                 )}
               </div>
-              <div>
-                <label className="text-xs text-[#78716C] block mb-1">Categoria</label>
-                <select className={inputCls} value={rateForm.collection} onChange={(e) => setRateForm((f) => ({ ...f, collection: e.target.value }))}>
-                  <option value="">Seleziona…</option>
-                  {collectionsList.map((c) => (<option key={c} value={c}>{c}</option>))}
-                </select>
+              <div className="relative">
+                <label className="text-xs text-[#78716C] block mb-1">Categorie</label>
+                <button
+                  type="button"
+                  data-testid="admin-rate-categories-toggle"
+                  onClick={() => setCategoryPickerOpen((o) => !o)}
+                  className={inputCls + " text-left flex items-center justify-between"}
+                >
+                  <span className="truncate">
+                    {rateForm.categories.length === 0
+                      ? "Seleziona…"
+                      : rateForm.categories.length === 1
+                      ? rateForm.categories[0]
+                      : `${rateForm.categories.length} categorie selezionate`}
+                  </span>
+                  <span className="text-[#78716C]">▾</span>
+                </button>
+                {categoryPickerOpen && (
+                  <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-[#E2DDD5] shadow-lg p-2" data-testid="admin-rate-categories-list">
+                    <div className="flex justify-between mb-1 px-1">
+                      <button type="button" className="text-xs text-[#C05A3E] hover:underline" onClick={() => setRateForm((f) => ({ ...f, categories: [...collectionsList] }))}>Seleziona tutte</button>
+                      <button type="button" className="text-xs text-[#78716C] hover:underline" onClick={() => setRateForm((f) => ({ ...f, categories: [] }))}>Deseleziona</button>
+                    </div>
+                    {collectionsList.map((c) => (
+                      <label key={c} className="flex items-center gap-2 px-1 py-1 text-sm hover:bg-[#F1EEE8] cursor-pointer">
+                        <input type="checkbox" checked={rateForm.categories.includes(c)} onChange={() => toggleRateCategory(c)} className="accent-[#C05A3E]" />
+                        {c}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-xs text-[#78716C] block mb-1">Fascia di peso</label>
@@ -752,7 +788,9 @@ export default function Admin() {
               <input className={inputCls} type="number" step="0.01" placeholder="Peso kg" value={form.weight_kg} onChange={setF("weight_kg")} data-testid="pf-weight" />
               <input className={inputCls} type="number" step="1" placeholder="Pezzi per confezione" value={form.coverage_sqm} onChange={setF("coverage_sqm")} />
               <input className={inputCls} type="number" placeholder="Stock" value={form.stock} onChange={setF("stock")} />
-              <input className={inputCls + " col-span-2"} placeholder="URL immagine" value={form.image} onChange={setF("image")} data-testid="pf-image" />
+              <input className={inputCls + " col-span-2"} placeholder="URL immagine 1 (foto principale)" value={form.image} onChange={setF("image")} data-testid="pf-image" />
+              <input className={inputCls + " col-span-2"} placeholder="URL immagine 2 (opzionale)" value={form.image2} onChange={setF("image2")} data-testid="pf-image2" />
+              <input className={inputCls + " col-span-2"} placeholder="URL immagine 3 (opzionale)" value={form.image3} onChange={setF("image3")} data-testid="pf-image3" />
               <textarea className={inputCls + " col-span-2"} rows={3} placeholder="Descrizione" value={form.description} onChange={setF("description")} />
               <label className="col-span-2 flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} className="accent-[#C05A3E]" />
