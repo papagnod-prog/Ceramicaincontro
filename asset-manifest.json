@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/store/static/css/main.c268ae9d.css",
-    "main.js": "/store/static/js/main.8c5cc494.js",
+    "main.css": "/store/static/css/main.0e2bc482.css",
+    "main.js": "/store/static/js/main.e494d499.js",
     "static/media/KelsonSans-Regular.ttf": "/store/static/media/KelsonSans-Regular.f5e834c1ad0d29921380.ttf",
     "static/media/KelsonSans-Light.ttf": "/store/static/media/KelsonSans-Light.6130ac41ea3bc667a040.ttf",
     "static/media/KelsonSans-Bold.ttf": "/store/static/media/KelsonSans-Bold.62bff34373be63f5a3ae.ttf",
@@ -9,11 +9,11 @@
     "static/media/KelsonSans-Light.woff": "/store/static/media/KelsonSans-Light.f7f14102f8c94437a04b.woff",
     "static/media/KelsonSans-Bold.woff": "/store/static/media/KelsonSans-Bold.1ec5c6a90a3add2ac8ad.woff",
     "index.html": "/store/index.html",
-    "main.c268ae9d.css.map": "/store/static/css/main.c268ae9d.css.map",
-    "main.8c5cc494.js.map": "/store/static/js/main.8c5cc494.js.map"
+    "main.0e2bc482.css.map": "/store/static/css/main.0e2bc482.css.map",
+    "main.e494d499.js.map": "/store/static/js/main.e494d499.js.map"
   },
   "entrypoints": [
-    "static/css/main.c268ae9d.css",
-    "static/js/main.8c5cc494.js"
+    "static/css/main.0e2bc482.css",
+    "static/js/main.e494d499.js"
   ]
 }
