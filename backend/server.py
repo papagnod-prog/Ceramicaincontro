@@ -49,6 +49,18 @@ EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", SMTP_USER)
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ceramica Incontro")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
+# The React SPA is served under the /store path (see frontend basename), so any link
+# sent by email must point there, not at the bare domain root.
+STORE_URL = FRONTEND_URL.rstrip("/") + "/store"
+
+ORDER_STATUS_LABEL_IT = {
+    "pending": "In attesa", "processing": "In lavorazione", "shipped": "Spedito",
+    "delivered": "Consegnato", "cancelled": "Annullato", "refunded": "Rimborsato",
+}
+
+
+def _order_track_url(order: dict) -> str:
+    return f"{STORE_URL}/ordine/{order['order_number']}"
 
 # Bank transfer / payment-provider details are admin-editable (see PaymentSettingsInput
 # below) and stored in db.settings. These are only the defaults used until an admin sets them.
@@ -205,7 +217,7 @@ async def _order_email_html(order: dict) -> str:
                  f'&euro; {it["price"] * it["quantity"]:.2f}</td></tr>')
     addr = order.get("shipping_address", {})
     ship = order.get("shipping_option", {})
-    account_url = f"{FRONTEND_URL}/account"
+    track_url = _order_track_url(order)
     payment_method = order.get("payment_method", "card")
 
     if payment_method == "card":
@@ -239,27 +251,29 @@ async def _order_email_html(order: dict) -> str:
         f'<p style="color:#57534E;font-size:14px;line-height:1.6"><strong>Spedizione a:</strong><br>'
         f'{escape(str(addr.get("line1", "")))}<br>{escape(str(addr.get("postal_code", "")))} '
         f'{escape(str(addr.get("city", "")))} {escape(str(addr.get("province", "")))}</p>'
-        f'<p style="margin:24px 0"><a href="{account_url}" '
+        f'<p style="margin:24px 0"><a href="{track_url}" '
         f'style="background:#C05A3E;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
-        f'Vedi i tuoi ordini</a></p>')
+        f'Traccia il tuo ordine</a></p>')
     return _brand_wrap(inner)
 
 
-def _shipping_email_html(order: dict) -> str:
+def _order_status_email_html(order: dict) -> str:
+    """Generic status-change notification, sent for every status transition. Always
+    includes a link to the public, no-login tracking page for this order."""
     tracking = order.get("tracking", "")
     status = order.get("status", "")
-    label = "spedito" if status == "shipped" else "consegnato"
-    account_url = f"{FRONTEND_URL}/account"
+    label = ORDER_STATUS_LABEL_IT.get(status, status)
+    track_url = _order_track_url(order)
     track_line = (f'<p style="color:#57534E;font-size:14px">Codice tracking: <strong>{escape(str(tracking))}</strong></p>'
                   if tracking else "")
     inner = (
-        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Il tuo ordine &egrave; stato {label}</h1>'
+        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Aggiornamento sul tuo ordine</h1>'
         f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(order.get("customer", {}).get("name", "")))}, '
-        f'l&rsquo;ordine <strong>{escape(str(order["order_number"]))}</strong> risulta ora <strong>{label}</strong>.</p>'
+        f'l&rsquo;ordine <strong>{escape(str(order["order_number"]))}</strong> &egrave; ora: <strong>{escape(label)}</strong>.</p>'
         f'{track_line}'
-        f'<p style="margin:24px 0"><a href="{account_url}" '
+        f'<p style="margin:24px 0"><a href="{track_url}" '
         f'style="background:#1C1917;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
-        f'Segui l&rsquo;ordine</a></p>')
+        f'Traccia il tuo ordine</a></p>')
     return _brand_wrap(inner)
 
 
@@ -1284,6 +1298,31 @@ async def get_order(order_id: str, user: dict = Depends(require_user)):
     return o
 
 
+@api_router.get("/track/{order_number}")
+async def track_order(order_number: str):
+    """Public, no-login order status lookup — the link sent by email to the customer
+    for every status change. Only exposes what the customer needs to see, not full
+    billing/financial detail."""
+    o = await db.orders.find_one({"order_number": order_number}, {"_id": 0})
+    if not o:
+        raise HTTPException(404, "Ordine non trovato")
+    return {
+        "order_number": o["order_number"],
+        "status": o.get("status", "pending"),
+        "status_label": ORDER_STATUS_LABEL_IT.get(o.get("status", "pending"), o.get("status")),
+        "tracking": o.get("tracking", ""),
+        "created_at": o.get("created_at"),
+        "updated_at": o.get("updated_at"),
+        "customer_name": o.get("customer", {}).get("name", ""),
+        "shipping_option": o.get("shipping_option", {}).get("name", ""),
+        "total": o.get("total", 0),
+        "items": [
+            {"name": it.get("name"), "quantity": it.get("quantity"), "image": it.get("image")}
+            for it in o.get("items", [])
+        ],
+    }
+
+
 @api_router.get("/admin/orders")
 async def admin_orders(admin: dict = Depends(require_admin), status: Optional[str] = None):
     q = {}
@@ -1304,16 +1343,13 @@ async def update_order_status(order_id: str, data: OrderStatusInput, admin: dict
     if res.matched_count == 0:
         raise HTTPException(404, "Ordine non trovato")
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
-    # Notify the customer by email when the order ships or is delivered, once per status.
-    sent_flag = f"{data.status}_email_sent"
-    if data.status in ("shipped", "delivered") and before.get("status") != data.status and not order.get(sent_flag) \
-            and order.get("customer", {}).get("email"):
-        await db.orders.update_one({"id": order_id}, {"$set": {sent_flag: True}})
-        label = "Spedito" if data.status == "shipped" else "Consegnato"
+    # Notify the customer by email on every status change, with a link to the public
+    # order-tracking page (no login required).
+    if before.get("status") != data.status and order.get("customer", {}).get("email"):
+        label = ORDER_STATUS_LABEL_IT.get(data.status, data.status)
         await _safe_send(order["customer"]["email"],
                          f"Ordine {order['order_number']} — {label} — Ceramica Incontro",
-                         _shipping_email_html(order))
-        order[sent_flag] = True
+                         _order_status_email_html(order))
     return order
 
 

@@ -201,7 +201,7 @@ export default function Admin() {
   const saveUnloading = async (e) => {
     e.preventDefault();
     try {
-      await api.put("/admin/shipping/unloading-service", { price: parseFloat(unloading.price) || 0, label: unloading.label || "Consegna a piano strada" });
+      await api.put("/admin/shipping/unloading-service", { price: 0, label: unloading.label || "Consegna a piano strada" });
       toast.success("Servizio di scarico salvato");
       loadShipping();
     } catch (err) {
@@ -391,7 +391,12 @@ export default function Admin() {
             </thead>
             <tbody>
               {orders.map((o) => (
-                <tr key={o.id} className="border-t border-[#E2DDD5]">
+                <tr
+                  key={o.id}
+                  data-testid={`order-row-${o.id}`}
+                  className="border-t border-[#E2DDD5] cursor-pointer hover:bg-[#F8F6F2]"
+                  onClick={() => navigate(`/admin/ordini/${o.id}`)}
+                >
                   <td className="px-4 py-3">
                     <div className="font-medium">{o.order_number}</div>
                     <div className="text-xs text-[#78716C]">{new Date(o.created_at).toLocaleDateString("it-IT")}</div>
@@ -410,7 +415,7 @@ export default function Admin() {
                       }[o.payment_status] || o.payment_status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 min-w-[160px]">
+                  <td className="px-4 py-3 min-w-[160px]" onClick={(e) => e.stopPropagation()}>
                     <Select value={o.status} onValueChange={(v) => updateOrderStatus(o, v)}>
                       <SelectTrigger data-testid={`order-status-${o.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white">
@@ -418,7 +423,7 @@ export default function Admin() {
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
                       defaultValue={o.tracking}
                       placeholder="Cod. tracking"
@@ -612,18 +617,14 @@ export default function Admin() {
           {/* Unloading service */}
           <section>
             <h3 className="font-serif-display text-2xl mb-4">Consegna a piano strada (sponda idraulica + trans pallet)</h3>
-            <form onSubmit={saveUnloading} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-[1fr_160px_auto] gap-3 items-end" data-testid="admin-unloading-form">
+            <form onSubmit={saveUnloading} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-[1fr_auto] gap-3 items-end" data-testid="admin-unloading-form">
               <div>
                 <label className="text-xs text-[#78716C] block mb-1">Etichetta</label>
                 <input className={inputCls} value={unloading.label} onChange={(e) => setUnloading((u) => ({ ...u, label: e.target.value }))} />
               </div>
-              <div>
-                <label className="text-xs text-[#78716C] block mb-1">Prezzo (€)</label>
-                <input type="number" step="0.01" className={inputCls} value={unloading.price} onChange={(e) => setUnloading((u) => ({ ...u, price: e.target.value }))} data-testid="admin-unloading-price" />
-              </div>
               <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors h-fit">Salva</button>
             </form>
-            <p className="text-xs text-[#78716C] mt-2">Servizio sempre incluso nel costo di trasporto. La consegna è tassativamente al piano strada.</p>
+            <p className="text-xs text-[#78716C] mt-2">Servizio sempre incluso, senza costo aggiuntivo. La consegna è tassativamente al piano strada. Visibile in checkout solo quando si seleziona la spedizione con corriere.</p>
           </section>
 
           {/* Payment settings: IBAN bonifico + chiavi Stripe/PayPal */}

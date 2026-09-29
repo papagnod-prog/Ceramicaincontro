@@ -20,6 +20,8 @@ import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
 import Samples from "@/pages/Samples";
 import QuoteRequest from "@/pages/QuoteRequest";
+import TrackOrder from "@/pages/TrackOrder";
+import AdminOrderDetail from "@/pages/AdminOrderDetail";
 
 function Shell() {
   const location = useLocation();
@@ -46,8 +48,10 @@ function Shell() {
           <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
           <Route path="/account" element={<Account />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/ordini/:orderId" element={<AdminOrderDetail />} />
           <Route path="/campioni" element={<Samples />} />
           <Route path="/preventivo-progetto" element={<QuoteRequest />} />
+          <Route path="/ordine/:orderNumber" element={<TrackOrder />} />
         </Routes>
       </main>
       <Footer />

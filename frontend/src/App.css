@@ -32,3 +32,23 @@
         transform: rotate(360deg);
     }
 }
+
+/* Order-preparation printouts (admin order detail): hide everything except the
+   print area itself when the "Stampa ordine" button triggers window.print(). */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .print-area, .print-area * {
+        visibility: visible;
+    }
+    .print-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+    .no-print {
+        display: none !important;
+    }
+}

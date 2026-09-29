@@ -194,40 +194,40 @@ export default function Checkout() {
             <h2 className="eyebrow mb-4 text-[#C05A3E]">4 · Metodo di spedizione</h2>
             <div className="space-y-3">
               {options.map((o) => (
-                <label
-                  key={o.id}
-                  data-testid={`shipping-option-${o.id}`}
-                  className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${
-                    shipId === o.id ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
-                  }`}
-                >
-                  <input type="radio" name="ship" checked={shipId === o.id} onChange={() => setShipId(o.id)} className="mt-1 accent-[#C05A3E]" />
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-sm">{o.name}</span>
-                      <span className="font-semibold text-sm">
-                        {shipId === o.id
-                          ? (!form.region ? "—" : quote.available ? (quote.shipping_cost === 0 ? "Gratis" : eur(quote.shipping_cost)) : "N/D")
-                          : ""}
-                      </span>
+                <div key={o.id}>
+                  <label
+                    data-testid={`shipping-option-${o.id}`}
+                    className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${
+                      shipId === o.id ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
+                    }`}
+                  >
+                    <input type="radio" name="ship" checked={shipId === o.id} onChange={() => setShipId(o.id)} className="mt-1 accent-[#C05A3E]" />
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <span className="font-medium text-sm">{o.name}</span>
+                        <span className="font-semibold text-sm">
+                          {shipId === o.id
+                            ? (!form.region ? "—" : quote.available ? (quote.shipping_cost === 0 ? "Gratis" : eur(quote.shipping_cost)) : "N/D")
+                            : ""}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#78716C] mt-0.5">{o.description} · {o.eta}{shipId === o.id && form.region && quote.available && quote.shipping_cost > 0 ? " · iva esclusa" : ""}</p>
                     </div>
-                    <p className="text-xs text-[#78716C] mt-0.5">{o.description} · {o.eta}{shipId === o.id && form.region && quote.available && quote.shipping_cost > 0 ? " · iva esclusa" : ""}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
+                  </label>
 
-            <div className="flex items-start gap-3 border border-[#E2DDD5] bg-[#F8F6F2] p-4 mt-3" data-testid="checkout-unloading-service">
-              <div className="flex-1">
-                <div className="flex justify-between">
-                  <span className="font-medium text-sm">{unloadingLabel}</span>
-                  <span className="font-semibold text-sm">{unloadingPrice === 0 ? "Incluso" : `${eur(unloadingPrice)} incluso`}</span>
+                  {o.id === "standard" && shipId === "standard" && (
+                    <div className="flex items-start gap-3 border border-[#E2DDD5] bg-[#F8F6F2] p-4 mt-3" data-testid="checkout-unloading-service">
+                      <div className="flex-1">
+                        <span className="font-medium text-sm">{unloadingLabel}</span>
+                        <p className="text-xs text-[#78716C] mt-0.5">
+                          Servizio di scarico (sponda idraulica + trans pallet) sempre incluso nel costo di trasporto.
+                          La consegna è tassativamente al piano strada.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-[#78716C] mt-0.5">
-                  Servizio di scarico (sponda idraulica + trans pallet) sempre incluso nel costo di trasporto.
-                  La consegna è tassativamente al piano strada.
-                </p>
-              </div>
+              ))}
             </div>
 
             {form.region && !quote.available && (
