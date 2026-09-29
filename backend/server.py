@@ -50,11 +50,11 @@ EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ceramica Incontro")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
 
-# Bank transfer details shown to customers who choose "bonifico bancario".
-# Placeholder until the client supplies the real IBAN/account holder.
-BANK_TRANSFER_IBAN = os.environ.get("BANK_TRANSFER_IBAN", "IT00 0000 0000 0000 0000 0000000")
-BANK_TRANSFER_HOLDER = os.environ.get("BANK_TRANSFER_HOLDER", "Ceramica Incontro S.r.l.")
-BANK_TRANSFER_BIC = os.environ.get("BANK_TRANSFER_BIC", "")
+# Bank transfer / payment-provider details are admin-editable (see PaymentSettingsInput
+# below) and stored in db.settings. These are only the defaults used until an admin sets them.
+DEFAULT_BANK_TRANSFER_IBAN = "IT00 0000 0000 0000 0000 0000000"
+DEFAULT_BANK_TRANSFER_HOLDER = "Ceramica Incontro S.r.l."
+DEFAULT_BANK_TRANSFER_BIC = ""
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
 _CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
@@ -195,7 +195,8 @@ def _vat_email_rows(order: dict) -> str:
         f'<td style="padding:8px 0;text-align:right;color:#78716C">&euro; {order.get("vat_amount_shipping", 0):.2f}</td></tr>')
 
 
-def _order_email_html(order: dict) -> str:
+async def _order_email_html(order: dict) -> str:
+    pay = await get_payment_settings()
     rows = ""
     for it in order["items"]:
         rows += (f'<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#1C1917">'
@@ -211,21 +212,17 @@ def _order_email_html(order: dict) -> str:
         intro = (f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong> '
                   'e il pagamento &egrave; stato confermato.')
         payment_note = ""
-    elif payment_method == "bank_transfer":
+    else:  # bank_transfer
         intro = (f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong>. '
                   'Per confermarlo, effettua il pagamento tramite bonifico bancario con i dati seguenti, '
                   'indicando il numero d&rsquo;ordine come causale.')
         payment_note = (
             f'<table role="presentation" width="100%" style="margin:16px 0;font-size:14px;background:#F8F6F2;padding:12px">'
-            f'<tr><td style="padding:4px 0;color:#78716C">Beneficiario</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_HOLDER)}</td></tr>'
-            f'<tr><td style="padding:4px 0;color:#78716C">IBAN</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_IBAN)}</td></tr>'
-            + (f'<tr><td style="padding:4px 0;color:#78716C">BIC/SWIFT</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_BIC)}</td></tr>' if BANK_TRANSFER_BIC else "")
+            f'<tr><td style="padding:4px 0;color:#78716C">Beneficiario</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_holder"])}</td></tr>'
+            f'<tr><td style="padding:4px 0;color:#78716C">IBAN</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_iban"])}</td></tr>'
+            + (f'<tr><td style="padding:4px 0;color:#78716C">BIC/SWIFT</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_bic"])}</td></tr>' if pay["bank_transfer_bic"] else "")
             + f'<tr><td style="padding:4px 0;color:#78716C">Causale</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(str(order["order_number"]))}</td></tr>'
             f'</table>')
-    else:  # cash on delivery
-        intro = (f'abbiamo ricevuto il tuo ordine <strong>{escape(str(order["order_number"]))}</strong>. '
-                  'Il pagamento avverr&agrave; in contanti alla consegna / ritiro.')
-        payment_note = ""
 
     inner = (
         f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Grazie per il tuo ordine!</h1>'
@@ -266,7 +263,8 @@ def _shipping_email_html(order: dict) -> str:
     return _brand_wrap(inner)
 
 
-def _sample_email_html(req: dict) -> str:
+async def _sample_email_html(req: dict) -> str:
+    pay = await get_payment_settings()
     rows = "".join(
         f'<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#1C1917">{escape(str(it["name"]))}</td></tr>'
         for it in req["items"]
@@ -282,9 +280,9 @@ def _sample_email_html(req: dict) -> str:
                   'Spediremo i campioni non appena riceveremo il pagamento.')
         payment_note = (
             f'<table role="presentation" width="100%" style="margin:16px 0;font-size:14px;background:#F8F6F2;padding:12px">'
-            f'<tr><td style="padding:4px 0;color:#78716C">Beneficiario</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_HOLDER)}</td></tr>'
-            f'<tr><td style="padding:4px 0;color:#78716C">IBAN</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_IBAN)}</td></tr>'
-            + (f'<tr><td style="padding:4px 0;color:#78716C">BIC/SWIFT</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(BANK_TRANSFER_BIC)}</td></tr>' if BANK_TRANSFER_BIC else "")
+            f'<tr><td style="padding:4px 0;color:#78716C">Beneficiario</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_holder"])}</td></tr>'
+            f'<tr><td style="padding:4px 0;color:#78716C">IBAN</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_iban"])}</td></tr>'
+            + (f'<tr><td style="padding:4px 0;color:#78716C">BIC/SWIFT</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_bic"])}</td></tr>' if pay["bank_transfer_bic"] else "")
             + f'<tr><td style="padding:4px 0;color:#78716C">Importo</td><td style="padding:4px 0;text-align:right;color:#1C1917">&euro; {fee:.2f}</td></tr>'
             + f'<tr><td style="padding:4px 0;color:#78716C">Causale</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(str(req["request_number"]))}</td></tr>'
             f'</table>')
@@ -415,7 +413,7 @@ class ShippingRateInput(BaseModel):
 
 class UnloadingServiceInput(BaseModel):
     price: float = Field(ge=0)
-    label: str = "Servizio di scarico (sponda idraulica + trans pallet)"
+    label: str = "Consegna a piano strada"
 
 
 # ---------------------------------------------------------------------------
@@ -442,6 +440,39 @@ def compute_vat(subtotal: float, shipping_cost: float, vat_rate_products: float,
     vat_products = round(subtotal * vat_rate_products / 100, 2)
     vat_shipping = round(shipping_cost * vat_rate_shipping / 100, 2)
     return vat_products, vat_shipping, round(vat_products + vat_shipping, 2)
+
+
+# ---------------------------------------------------------------------------
+# Payment settings (IBAN bonifico + chiavi Stripe/PayPal) — admin-editable, stored in DB.
+# Stripe/PayPal keys are stored for future use; they are not yet wired into the
+# checkout flow (Stripe Checkout still uses STRIPE_SECRET_KEY from the environment).
+# ---------------------------------------------------------------------------
+PAYMENT_SETTINGS_ID = "payment_settings"
+
+
+class PaymentSettingsInput(BaseModel):
+    bank_transfer_iban: str = ""
+    bank_transfer_holder: str = ""
+    bank_transfer_bic: str = ""
+    stripe_publishable_key: str = ""
+    stripe_secret_key: str = ""
+    paypal_client_id: str = ""
+    paypal_secret: str = ""
+
+
+async def get_payment_settings() -> dict:
+    doc = await db.settings.find_one({"id": PAYMENT_SETTINGS_ID}, {"_id": 0})
+    defaults = {
+        "bank_transfer_iban": DEFAULT_BANK_TRANSFER_IBAN,
+        "bank_transfer_holder": DEFAULT_BANK_TRANSFER_HOLDER,
+        "bank_transfer_bic": DEFAULT_BANK_TRANSFER_BIC,
+        "stripe_publishable_key": "", "stripe_secret_key": "",
+        "paypal_client_id": "", "paypal_secret": "",
+    }
+    if not doc:
+        return defaults
+    defaults.update({k: v for k, v in doc.items() if k != "id"})
+    return defaults
 
 
 def _find_bracket_for_weight(brackets: List[dict], weight_kg: float) -> Optional[dict]:
@@ -519,7 +550,6 @@ class QuoteInput(BaseModel):
     items: List[CartItem]
     shipping_option_id: str
     region: Optional[str] = None
-    unloading_service: bool = False
 
 
 class CustomerInfo(BaseModel):
@@ -538,9 +568,12 @@ class ShippingAddress(BaseModel):
 
 
 class BillingInfo(BaseModel):
+    is_business: bool = False
     vat_number: Optional[str] = ""
     codice_fiscale: Optional[str] = ""
     company: Optional[str] = ""
+    sdi_code: Optional[str] = ""
+    pec_address: Optional[str] = ""
 
 
 class CheckoutInput(BaseModel):
@@ -550,8 +583,7 @@ class CheckoutInput(BaseModel):
     shipping_address: ShippingAddress
     billing: Optional[BillingInfo] = None
     origin_url: str
-    unloading_service: bool = False
-    payment_method: str = "cash"  # "cash" (contrassegno) or "bank_transfer" (bonifico). "card" reserved for future Stripe launch.
+    payment_method: str = "bank_transfer"  # "bank_transfer" (bonifico) or "card" (Stripe, reserved for future launch).
 
 
 class ProductInput(BaseModel):
@@ -859,7 +891,7 @@ async def shipping_unloading_service_public():
     doc = await db.shipping_settings.find_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"_id": 0})
     if not doc:
         return {"price": DEFAULT_UNLOADING_SERVICE_PRICE,
-                "label": "Servizio di scarico (sponda idraulica + trans pallet)"}
+                "label": "Consegna a piano strada"}
     return doc
 
 
@@ -886,10 +918,11 @@ async def _price_cart(items: List[CartItem]):
     return round(subtotal, 2), round(weight, 2), lines
 
 
-async def _quote_shipping(shipping_option_id: str, region: Optional[str], unloading_service: bool,
+async def _quote_shipping(shipping_option_id: str, region: Optional[str],
                            subtotal: float, weight: float, lines: List[dict]):
     """Full shipping quote: region+weight+collection matrix, with fallback contact info
-    when a rate is missing, plus optional unloading service surcharge (pallet)."""
+    when a rate is missing, plus the "Consegna a piano strada" surcharge — always included
+    in the transport cost, no longer an optional add-on."""
     contact_email = EMAIL_REPLY_TO or os.environ.get("ADMIN_EMAIL", "")
     if not region:
         return {"available": False, "shipping_cost": 0.0, "breakdown": [],
@@ -898,11 +931,9 @@ async def _quote_shipping(shipping_option_id: str, region: Optional[str], unload
 
     cost, breakdown, available = await compute_regional_shipping(shipping_option_id, region, lines)
 
-    unloading_price = 0.0
-    if unloading_service:
-        settings = await db.shipping_settings.find_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"_id": 0})
-        unloading_price = settings["price"] if settings else DEFAULT_UNLOADING_SERVICE_PRICE
-        cost = round(cost + unloading_price, 2)
+    settings = await db.shipping_settings.find_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"_id": 0})
+    unloading_price = settings["price"] if settings else DEFAULT_UNLOADING_SERVICE_PRICE
+    cost = round(cost + unloading_price, 2)
 
     opt = next((o for o in SHIPPING_OPTIONS if o["id"] == shipping_option_id), None)
     if opt and opt.get("free_over") is not None and subtotal >= opt["free_over"]:
@@ -921,8 +952,7 @@ async def _quote_shipping(shipping_option_id: str, region: Optional[str], unload
 @api_router.post("/shipping/quote")
 async def shipping_quote(data: QuoteInput):
     subtotal, weight, lines = await _price_cart(data.items)
-    quote = await _quote_shipping(data.shipping_option_id, data.region, data.unloading_service,
-                                   subtotal, weight, lines)
+    quote = await _quote_shipping(data.shipping_option_id, data.region, subtotal, weight, lines)
     cost = quote["shipping_cost"] if quote["available"] else 0.0
     vat_rate_products, vat_rate_shipping = await get_vat_rates()
     vat_products, vat_shipping, vat_total = compute_vat(subtotal, cost, vat_rate_products, vat_rate_shipping)
@@ -997,7 +1027,7 @@ async def admin_delete_rate(rate_id: str, admin: dict = Depends(require_admin)):
 async def admin_get_unloading_service(admin: dict = Depends(require_admin)):
     doc = await db.shipping_settings.find_one({"id": UNLOADING_SERVICE_SETTINGS_ID}, {"_id": 0})
     return doc or {"id": UNLOADING_SERVICE_SETTINGS_ID, "price": DEFAULT_UNLOADING_SERVICE_PRICE,
-                   "label": "Servizio di scarico (sponda idraulica + trans pallet)"}
+                   "label": "Consegna a piano strada"}
 
 
 @api_router.put("/admin/shipping/unloading-service")
@@ -1026,6 +1056,19 @@ async def admin_set_vat(data: VatSettingsInput, admin: dict = Depends(require_ad
     return {"vat_rate_products": doc["vat_rate_products"], "vat_rate_shipping": doc["vat_rate_shipping"]}
 
 
+@api_router.get("/admin/payment-settings")
+async def admin_get_payment_settings(admin: dict = Depends(require_admin)):
+    return await get_payment_settings()
+
+
+@api_router.put("/admin/payment-settings")
+async def admin_set_payment_settings(data: PaymentSettingsInput, admin: dict = Depends(require_admin)):
+    doc = {"id": PAYMENT_SETTINGS_ID, **data.model_dump()}
+    await db.settings.update_one({"id": PAYMENT_SETTINGS_ID}, {"$set": doc}, upsert=True)
+    doc.pop("id", None)
+    return doc
+
+
 # ---------------------------------------------------------------------------
 # Checkout / Payments
 # ---------------------------------------------------------------------------
@@ -1034,8 +1077,10 @@ async def create_checkout(data: CheckoutInput, request: Request):
     subtotal, weight, lines = await _price_cart(data.items)
     if not lines:
         raise HTTPException(400, "Carrello vuoto")
+    if data.billing and data.billing.is_business and not (data.billing.sdi_code or "").strip() and not (data.billing.pec_address or "").strip():
+        raise HTTPException(400, "Per la fatturazione azienda indica il Codice SDI oppure l'indirizzo PEC.")
     quote = await _quote_shipping(data.shipping_option_id, data.shipping_address.region,
-                                   data.unloading_service, subtotal, weight, lines)
+                                   subtotal, weight, lines)
     if not quote["available"]:
         raise HTTPException(400, "Spedizione non disponibile per questa regione/categoria/peso. "
                                   "Contatta il nostro ufficio spedizioni.")
@@ -1050,7 +1095,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
     order_id = str(uuid.uuid4())
     order_number = "CI-" + datetime.now().strftime("%y%m%d") + "-" + order_id[:6].upper()
 
-    payment_method = data.payment_method if data.payment_method in ("cash", "bank_transfer", "card") else "cash"
+    payment_method = data.payment_method if data.payment_method in ("bank_transfer", "card") else "bank_transfer"
 
     base_order = {
         "id": order_id, "order_number": order_number,
@@ -1061,7 +1106,6 @@ async def create_checkout(data: CheckoutInput, request: Request):
         "items": lines, "subtotal": subtotal, "weight_kg": weight,
         "shipping_option": {"id": shipping_opt["id"], "name": shipping_opt["name"]},
         "shipping_cost": shipping_cost, "shipping_breakdown": quote["breakdown"],
-        "unloading_service": data.unloading_service,
         "unloading_service_price": quote.get("unloading_service_price", 0.0),
         "vat_rate_products": vat_rate_products, "vat_rate_shipping": vat_rate_shipping,
         "vat_amount_products": vat_amount_products, "vat_amount_shipping": vat_amount_shipping,
@@ -1114,11 +1158,11 @@ async def create_checkout(data: CheckoutInput, request: Request):
         return {"checkout_url": session.url, "session_id": session.id, "order_number": order_number,
                 "payment_method": payment_method}
 
-    # Cash on delivery ("contrassegno") or bank transfer ("bonifico"): no Stripe involved.
-    # Order is confirmed immediately; payment is settled offline / on delivery.
+    # Bank transfer ("bonifico"): no Stripe involved. Order is confirmed immediately;
+    # payment is settled offline once the transfer arrives.
     order = {**base_order,
-             "status": "processing" if payment_method == "cash" else "pending",
-             "payment_status": "cod_pending" if payment_method == "cash" else "awaiting_transfer",
+             "status": "pending",
+             "payment_status": "awaiting_transfer",
              "session_id": None}
     await db.orders.insert_one(order)
 
@@ -1126,7 +1170,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
         await db.orders.update_one({"id": order_id}, {"$set": {"email_sent": True}})
         await _safe_send(data.customer.email,
                          f"Ordine confermato {order_number} — Ceramica Incontro",
-                         _order_email_html(order))
+                         await _order_email_html(order))
 
     return {"checkout_url": f"{data.origin_url}/payment/confirmation?order={order_number}&method={payment_method}",
             "session_id": None, "order_number": order_number, "payment_method": payment_method}
@@ -1149,7 +1193,7 @@ async def _mark_paid(session_id: str, payment_intent=None):
                 await db.sample_requests.update_one({"id": req["id"]}, {"$set": {"email_sent": True}})
                 await _safe_send(req["customer"]["email"],
                                  f"Richiesta campioni confermata {req['request_number']} — Ceramica Incontro",
-                                 _sample_email_html(req))
+                                 await _sample_email_html(req))
                 if os.environ.get("ADMIN_EMAIL"):
                     await _safe_send(os.environ["ADMIN_EMAIL"],
                                      f"Nuova richiesta campioni {req['request_number']}",
@@ -1170,7 +1214,7 @@ async def _mark_paid(session_id: str, payment_intent=None):
             await db.orders.update_one({"id": order["id"]}, {"$set": {"email_sent": True}})
             await _safe_send(order["customer"]["email"],
                              f"Ordine confermato {order['order_number']} — Ceramica Incontro",
-                             _order_email_html(order))
+                             await _order_email_html(order))
 
 
 @api_router.get("/payments/status/{session_id}")
@@ -1344,7 +1388,7 @@ async def request_samples(data: SampleRequestInput, request: Request):
         await db.sample_requests.update_one({"id": req_id}, {"$set": {"email_sent": True}})
         await _safe_send(data.customer.email,
                          f"Richiesta campioni ricevuta {req_number} — Ceramica Incontro",
-                         _sample_email_html(req))
+                         await _sample_email_html(req))
     if os.environ.get("ADMIN_EMAIL"):
         await _safe_send(os.environ["ADMIN_EMAIL"],
                          f"Nuova richiesta campioni {req_number}",

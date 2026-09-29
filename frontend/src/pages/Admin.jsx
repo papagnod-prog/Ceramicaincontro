@@ -60,7 +60,13 @@ export default function Admin() {
   const [rateForm, setRateForm] = useState({ shipping_option_id: "", regions: [], categories: [], weight_bracket_id: "", price: "" });
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
-  const [rateFilter, setRateFilter] = useState({ shipping_option_id: "", collection: "" });
+  const [rateFilter, setRateFilter] = useState({ shipping_option_id: "", collection: "", region: "" });
+
+  // Payment settings (IBAN bonifico + chiavi Stripe/PayPal)
+  const [paymentSettings, setPaymentSettings] = useState({
+    bank_transfer_iban: "", bank_transfer_holder: "", bank_transfer_bic: "",
+    stripe_publishable_key: "", stripe_secret_key: "", paypal_client_id: "", paypal_secret: "",
+  });
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "admin")) navigate("/login");
@@ -81,6 +87,7 @@ export default function Admin() {
     api.get("/admin/shipping/rates").then(({ data }) => setRates(data)).catch(() => {});
     api.get("/admin/shipping/unloading-service").then(({ data }) => setUnloading({ price: data.price, label: data.label })).catch(() => {});
     api.get("/admin/vat").then(({ data }) => setVatRates({ vat_rate_products: data.vat_rate_products, vat_rate_shipping: data.vat_rate_shipping })).catch(() => {});
+    api.get("/admin/payment-settings").then(({ data }) => setPaymentSettings(data)).catch(() => {});
   };
   useEffect(() => {
     if (user?.role === "admin") { loadAll(); loadShipping(); }
@@ -194,9 +201,21 @@ export default function Admin() {
   const saveUnloading = async (e) => {
     e.preventDefault();
     try {
-      await api.put("/admin/shipping/unloading-service", { price: parseFloat(unloading.price) || 0, label: unloading.label || "Servizio di scarico" });
+      await api.put("/admin/shipping/unloading-service", { price: parseFloat(unloading.price) || 0, label: unloading.label || "Consegna a piano strada" });
       toast.success("Servizio di scarico salvato");
       loadShipping();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
+  // --- Payment settings (IBAN bonifico + chiavi Stripe/PayPal) ---
+  const savePaymentSettings = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.put("/admin/payment-settings", paymentSettings);
+      setPaymentSettings(data);
+      toast.success("Impostazioni di pagamento salvate");
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     }
@@ -262,7 +281,8 @@ export default function Admin() {
   const filteredRates = rates.filter(
     (r) =>
       (!rateFilter.shipping_option_id || r.shipping_option_id === rateFilter.shipping_option_id) &&
-      (!rateFilter.collection || r.collection === rateFilter.collection)
+      (!rateFilter.collection || r.collection === rateFilter.collection) &&
+      (!rateFilter.region || r.region === rateFilter.region)
   );
 
   const inputCls = "w-full bg-white border border-[#E2DDD5] px-3 py-2 focus:outline-none focus:border-[#C05A3E] text-sm";
@@ -591,7 +611,7 @@ export default function Admin() {
 
           {/* Unloading service */}
           <section>
-            <h3 className="font-serif-display text-2xl mb-4">Servizio di scarico (sponda idraulica + trans pallet)</h3>
+            <h3 className="font-serif-display text-2xl mb-4">Consegna a piano strada (sponda idraulica + trans pallet)</h3>
             <form onSubmit={saveUnloading} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-[1fr_160px_auto] gap-3 items-end" data-testid="admin-unloading-form">
               <div>
                 <label className="text-xs text-[#78716C] block mb-1">Etichetta</label>
@@ -603,6 +623,49 @@ export default function Admin() {
               </div>
               <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors h-fit">Salva</button>
             </form>
+            <p className="text-xs text-[#78716C] mt-2">Servizio sempre incluso nel costo di trasporto. La consegna è tassativamente al piano strada.</p>
+          </section>
+
+          {/* Payment settings: IBAN bonifico + chiavi Stripe/PayPal */}
+          <section>
+            <h3 className="font-serif-display text-2xl mb-4">Pagamenti</h3>
+            <form onSubmit={savePaymentSettings} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-3 gap-3 items-end" data-testid="admin-payment-settings-form">
+              <div className="sm:col-span-3 text-sm font-medium text-[#57534E] -mb-1">Bonifico bancario</div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">IBAN</label>
+                <input className={inputCls} value={paymentSettings.bank_transfer_iban} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_iban: e.target.value }))} data-testid="admin-payment-iban" />
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Titolare conto</label>
+                <input className={inputCls} value={paymentSettings.bank_transfer_holder} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_holder: e.target.value }))} data-testid="admin-payment-holder" />
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">BIC/SWIFT</label>
+                <input className={inputCls} value={paymentSettings.bank_transfer_bic} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_bic: e.target.value }))} data-testid="admin-payment-bic" />
+              </div>
+              <div className="sm:col-span-3 text-sm font-medium text-[#57534E] mt-3 -mb-1">Stripe (chiavi salvate, non ancora attivo in checkout)</div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Publishable key</label>
+                <input className={inputCls} value={paymentSettings.stripe_publishable_key} onChange={(e) => setPaymentSettings((p) => ({ ...p, stripe_publishable_key: e.target.value }))} data-testid="admin-stripe-publishable" />
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Secret key</label>
+                <input type="password" className={inputCls} value={paymentSettings.stripe_secret_key} onChange={(e) => setPaymentSettings((p) => ({ ...p, stripe_secret_key: e.target.value }))} data-testid="admin-stripe-secret" />
+              </div>
+              <div className="sm:col-span-3 text-sm font-medium text-[#57534E] mt-3 -mb-1">PayPal (chiavi salvate, non ancora attivo in checkout)</div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Client ID</label>
+                <input className={inputCls} value={paymentSettings.paypal_client_id} onChange={(e) => setPaymentSettings((p) => ({ ...p, paypal_client_id: e.target.value }))} data-testid="admin-paypal-client-id" />
+              </div>
+              <div>
+                <label className="text-xs text-[#78716C] block mb-1">Secret</label>
+                <input type="password" className={inputCls} value={paymentSettings.paypal_secret} onChange={(e) => setPaymentSettings((p) => ({ ...p, paypal_secret: e.target.value }))} data-testid="admin-paypal-secret" />
+              </div>
+              <div className="sm:col-span-3">
+                <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors">Salva impostazioni di pagamento</button>
+              </div>
+            </form>
+            <p className="text-xs text-[#78716C] mt-2">Le chiavi Stripe e PayPal vengono salvate ma il checkout accetta solo bonifico bancario per ora.</p>
           </section>
 
           {/* Rates matrix */}
@@ -706,6 +769,10 @@ export default function Admin() {
               <select className={inputCls + " max-w-[220px]"} value={rateFilter.collection} onChange={(e) => setRateFilter((f) => ({ ...f, collection: e.target.value }))}>
                 <option value="">Tutte le categorie</option>
                 {collectionsList.map((c) => (<option key={c} value={c}>{c}</option>))}
+              </select>
+              <select className={inputCls + " max-w-[220px]"} value={rateFilter.region} onChange={(e) => setRateFilter((f) => ({ ...f, region: e.target.value }))} data-testid="admin-rate-filter-region">
+                <option value="">Tutte le regioni</option>
+                {regions.map((r) => (<option key={r} value={r}>{r}</option>))}
               </select>
             </div>
 

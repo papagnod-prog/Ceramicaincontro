@@ -16,9 +16,10 @@ export default function Checkout() {
   const [options, setOptions] = useState([]);
   const [regions, setRegions] = useState([]);
   const [shipId, setShipId] = useState("standard");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [unloadingService, setUnloadingService] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [unloadingLabel, setUnloadingLabel] = useState("Consegna a piano strada");
   const [unloadingPrice, setUnloadingPrice] = useState(0);
+  const [customerType, setCustomerType] = useState("privato"); // "privato" | "azienda"
   const [quote, setQuote] = useState({
     available: true, shipping_cost: 0, breakdown: [],
     vat_rate_products: 22, vat_rate_shipping: 22,
@@ -30,7 +31,7 @@ export default function Checkout() {
   const [form, setForm] = useState({
     email: "", name: "", phone: "",
     line1: "", city: "", postal_code: "", province: "", region: "",
-    vat_number: "", codice_fiscale: "", company: "",
+    vat_number: "", codice_fiscale: "", company: "", sdi_code: "", pec_address: "",
   });
 
   useEffect(() => {
@@ -40,7 +41,10 @@ export default function Checkout() {
   useEffect(() => {
     api.get("/shipping/options").then(({ data }) => setOptions(data));
     api.get("/shipping/regions").then(({ data }) => setRegions(data));
-    api.get("/shipping/unloading-service").then(({ data }) => setUnloadingPrice(data.price));
+    api.get("/shipping/unloading-service").then(({ data }) => {
+      setUnloadingPrice(data.price);
+      if (data.label) setUnloadingLabel(data.label);
+    });
   }, []);
 
   useEffect(() => {
@@ -54,19 +58,19 @@ export default function Checkout() {
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
         shipping_option_id: shipId,
         region: form.region || null,
-        unloading_service: unloadingService,
       })
       .then(({ data }) => setQuote(data))
       .catch(() => {});
-  }, [shipId, items, form.region, unloadingService]);
+  }, [shipId, items, form.region]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const shippingCost = quote.available ? quote.shipping_cost : 0;
   const vatTotal = quote.vat_amount_total || 0;
   const total = subtotal + shippingCost + vatTotal;
+  const isAzienda = customerType === "azienda";
 
   const contactMailto = () => {
-    const email = quote.contact_email || "info@ceramicaincontro.it";
+    const email = quote.contact_email || "contatto@ceramicaincontro.it";
     const subject = "Richiesta preventivo spedizione — Ceramica Incontro";
     const itemsList = items.map((i) => `- ${i.name} (Qtà ${i.quantity})`).join("\n");
     const body =
@@ -83,6 +87,10 @@ export default function Checkout() {
       toast.error("Spedizione non disponibile per questa regione: contatta il nostro ufficio spedizioni.");
       return;
     }
+    if (isAzienda && !form.sdi_code && !form.pec_address) {
+      toast.error("Per la fatturazione azienda indica il Codice SDI oppure l'indirizzo PEC.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -94,8 +102,13 @@ export default function Checkout() {
           line1: form.line1, city: form.city, postal_code: form.postal_code,
           province: form.province, region: form.region, country: "IT",
         },
-        billing: { vat_number: form.vat_number, codice_fiscale: form.codice_fiscale, company: form.company },
-        unloading_service: unloadingService,
+        billing: isAzienda
+          ? {
+              is_business: true,
+              company: form.company, vat_number: form.vat_number, codice_fiscale: form.codice_fiscale,
+              sdi_code: form.sdi_code, pec_address: form.pec_address,
+            }
+          : { is_business: false },
         payment_method: paymentMethod,
         origin_url: window.location.origin + "/store",
       });
@@ -149,14 +162,31 @@ export default function Checkout() {
             </div>
           </section>
 
-          {/* Billing */}
+          {/* Customer type + billing */}
           <section>
-            <h2 className="eyebrow mb-4 text-[#C05A3E]">3 · Fatturazione (opzionale)</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <input className={inputCls} placeholder="Ragione sociale" value={form.company} onChange={set("company")} data-testid="checkout-company" />
-              <input className={inputCls} placeholder="Partita IVA" value={form.vat_number} onChange={set("vat_number")} data-testid="checkout-vat" />
-              <input className={inputCls + " sm:col-span-2"} placeholder="Codice Fiscale" value={form.codice_fiscale} onChange={set("codice_fiscale")} data-testid="checkout-cf" />
+            <h2 className="eyebrow mb-4 text-[#C05A3E]">3 · Fatturazione</h2>
+            <div className="flex gap-3 mb-4" data-testid="checkout-customer-type">
+              <label className={`flex-1 flex items-center gap-2 border p-3 cursor-pointer text-sm ${customerType === "privato" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white"}`}>
+                <input type="radio" name="customer_type" checked={customerType === "privato"} onChange={() => setCustomerType("privato")} className="accent-[#C05A3E]" data-testid="checkout-customer-privato" />
+                Privato
+              </label>
+              <label className={`flex-1 flex items-center gap-2 border p-3 cursor-pointer text-sm ${customerType === "azienda" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white"}`}>
+                <input type="radio" name="customer_type" checked={customerType === "azienda"} onChange={() => setCustomerType("azienda")} className="accent-[#C05A3E]" data-testid="checkout-customer-azienda" />
+                Azienda
+              </label>
             </div>
+
+            {isAzienda && (
+              <div className="grid sm:grid-cols-2 gap-4" data-testid="checkout-billing-azienda">
+                <input className={inputCls} placeholder="Ragione sociale" required value={form.company} onChange={set("company")} data-testid="checkout-company" />
+                <input className={inputCls} placeholder="Partita IVA" required value={form.vat_number} onChange={set("vat_number")} data-testid="checkout-vat" />
+                <input className={inputCls} placeholder="Codice Fiscale" value={form.codice_fiscale} onChange={set("codice_fiscale")} data-testid="checkout-cf" />
+                <div />
+                <input className={inputCls} placeholder="Codice SDI" value={form.sdi_code} onChange={set("sdi_code")} data-testid="checkout-sdi" />
+                <input className={inputCls} placeholder="oppure indirizzo PEC" type="email" value={form.pec_address} onChange={set("pec_address")} data-testid="checkout-pec" />
+                <p className="text-xs text-[#78716C] sm:col-span-2">Indica almeno uno dei due, Codice SDI o PEC, per la fattura elettronica.</p>
+              </div>
+            )}
           </section>
 
           {/* Shipping method */}
@@ -187,16 +217,18 @@ export default function Checkout() {
               ))}
             </div>
 
-            <label className="flex items-start gap-3 border border-[#E2DDD5] bg-white p-4 mt-3 cursor-pointer" data-testid="checkout-unloading-service">
-              <input type="checkbox" checked={unloadingService} onChange={(e) => setUnloadingService(e.target.checked)} className="mt-1 accent-[#C05A3E]" />
+            <div className="flex items-start gap-3 border border-[#E2DDD5] bg-[#F8F6F2] p-4 mt-3" data-testid="checkout-unloading-service">
               <div className="flex-1">
                 <div className="flex justify-between">
-                  <span className="font-medium text-sm">Servizio di scarico (sponda idraulica + trans pallet)</span>
-                  <span className="font-semibold text-sm">{unloadingPrice === 0 ? "Gratis" : eur(unloadingPrice)}</span>
+                  <span className="font-medium text-sm">{unloadingLabel}</span>
+                  <span className="font-semibold text-sm">{unloadingPrice === 0 ? "Incluso" : `${eur(unloadingPrice)} incluso`}</span>
                 </div>
-                <p className="text-xs text-[#78716C] mt-0.5">Necessario se non disponi di mezzi per lo scarico del bancale.</p>
+                <p className="text-xs text-[#78716C] mt-0.5">
+                  Servizio di scarico (sponda idraulica + trans pallet) sempre incluso nel costo di trasporto.
+                  La consegna è tassativamente al piano strada.
+                </p>
               </div>
-            </label>
+            </div>
 
             {form.region && !quote.available && (
               <div className="mt-4 border border-[#E7C9A8] bg-[#FCF3E6] text-[#8A5A24] text-sm px-4 py-4 space-y-3" data-testid="checkout-shipping-unavailable">
@@ -216,18 +248,6 @@ export default function Checkout() {
           <section>
             <h2 className="eyebrow mb-4 text-[#C05A3E]">5 · Metodo di pagamento</h2>
             <div className="space-y-3">
-              <label
-                data-testid="payment-method-cash"
-                className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${
-                  paymentMethod === "cash" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
-                }`}
-              >
-                <input type="radio" name="payment" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} className="mt-1 accent-[#C05A3E]" />
-                <div className="flex-1">
-                  <span className="font-medium text-sm">Contanti alla consegna / ritiro</span>
-                  <p className="text-xs text-[#78716C] mt-0.5">Paghi in contanti quando ricevi o ritiri la merce.</p>
-                </div>
-              </label>
               <label
                 data-testid="payment-method-bank_transfer"
                 className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${
@@ -265,7 +285,7 @@ export default function Checkout() {
             <div className="border-t border-[#E2DDD5] pt-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-[#78716C]">Subtotale <span className="text-[0.65rem]">(iva esclusa)</span></span><span>{eur(subtotal)}</span></div>
               <div className="flex justify-between">
-                <span className="text-[#78716C]">Spedizione <span className="text-[0.65rem]">(iva esclusa)</span></span>
+                <span className="text-[#78716C]">Spedizione <span className="text-[0.65rem]">(iva esclusa, scarico incluso)</span></span>
                 <span>{!form.region ? "—" : quote.available ? (shippingCost === 0 ? "Gratis" : eur(shippingCost)) : "N/D"}</span>
               </div>
               <div className="flex justify-between text-xs text-[#78716C]"><span>Peso</span><span>{weight.toFixed(1)} kg</span></div>

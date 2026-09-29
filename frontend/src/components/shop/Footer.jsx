@@ -47,7 +47,7 @@ export const Footer = () => (
             <li>Sp 231 km 34,200</li>
             <li>70033 Corato (BA), Italia</li>
             <li>Tel. 080 898 4326</li>
-            <li>info@ceramicaincontro.it</li>
+            <li>contatto@ceramicaincontro.it</li>
           </ul>
         </div>
       </div>
