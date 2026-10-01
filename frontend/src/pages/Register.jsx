@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { formatApiErrorDetail } from "@/lib/api";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { ConsentCheckbox } from "@/components/shop/ConsentCheckbox";
+import { Link } from "react-router-dom";
 
 const SIDE_IMG = "https://images.unsplash.com/photo-1673731535556-665e8b8041fe?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000";
 
@@ -15,13 +17,14 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [okPrivacy, setOkPrivacy] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await register(name, email, password);
+      await register(name, email, password, okPrivacy);
       navigate("/account");
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail) || err.message);
@@ -43,20 +46,23 @@ export default function Register() {
 
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="eyebrow block mb-2">Nome</label>
-              <input data-testid="register-name" required value={name} onChange={(e) => setName(e.target.value)}
+              <label htmlFor="reg-name" className="eyebrow block mb-2">Nome</label>
+              <input id="reg-name" data-testid="register-name" required value={name} onChange={(e) => setName(e.target.value)}
                 className="w-full bg-white border border-[#E2DDD5] px-4 py-3 focus:outline-none focus:border-[#C05A3E]" />
             </div>
             <div>
-              <label className="eyebrow block mb-2">Email</label>
-              <input data-testid="register-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+              <label htmlFor="reg-email" className="eyebrow block mb-2">Email</label>
+              <input id="reg-email" data-testid="register-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-white border border-[#E2DDD5] px-4 py-3 focus:outline-none focus:border-[#C05A3E]" />
             </div>
             <div>
-              <label className="eyebrow block mb-2">Password</label>
-              <input data-testid="register-password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
+              <label htmlFor="reg-password" className="eyebrow block mb-2">Password</label>
+              <input id="reg-password" data-testid="register-password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-white border border-[#E2DDD5] px-4 py-3 focus:outline-none focus:border-[#C05A3E]" />
             </div>
+            <ConsentCheckbox checked={okPrivacy} onChange={setOkPrivacy} testid="register-privacy">
+              Ho letto l'<Link to="/privacy" className="underline text-[#A64B32]">Informativa privacy</Link> e acconsento al trattamento dei dati per creare il mio account.
+            </ConsentCheckbox>
             <button data-testid="register-submit" disabled={busy}
               className="w-full bg-[#1C1917] text-white py-3.5 text-sm font-semibold hover:bg-[#C05A3E] transition-colors disabled:opacity-60">
               {busy ? "Creazione…" : "Registrati"}

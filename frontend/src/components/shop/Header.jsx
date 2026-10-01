@@ -75,12 +75,12 @@ export const Header = () => {
               )}
             </button>
             <form onSubmit={submitSearch} className="hidden md:flex items-center relative">
-              <Search className="w-4 h-4 absolute left-3 text-[#78716C]" />
+              <Search aria-hidden="true" className="w-4 h-4 absolute left-3 text-[#78716C]" />
               <input
                 data-testid="search-input"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Cerca..."
+                aria-label="Cerca nel negozio" placeholder="Cerca..."
                 className="pl-9 pr-3 py-2 w-40 bg-white border border-[#E2DDD5] rounded-full text-sm focus:outline-none focus:w-52 transition-all"
               />
             </form>
@@ -123,11 +123,11 @@ export const Header = () => {
       {mobileOpen && (
         <div className="lg:hidden border-t border-[#E2DDD5] bg-[#F8F6F2] px-4 py-5 space-y-3">
           <form onSubmit={submitSearch} className="flex items-center relative mb-3">
-            <Search className="w-4 h-4 absolute left-3 text-[#78716C]" />
+            <Search aria-hidden="true" className="w-4 h-4 absolute left-3 text-[#78716C]" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Cerca prodotti..."
+              aria-label="Cerca prodotti" placeholder="Cerca prodotti..."
               className="pl-9 pr-3 py-2.5 w-full bg-white border border-[#E2DDD5] rounded-full text-sm focus:outline-none"
             />
           </form>

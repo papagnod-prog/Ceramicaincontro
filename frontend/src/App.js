@@ -1,4 +1,5 @@
 import "@/App.css";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
@@ -22,9 +23,12 @@ import Samples from "@/pages/Samples";
 import QuoteRequest from "@/pages/QuoteRequest";
 import TrackOrder from "@/pages/TrackOrder";
 import AdminOrderDetail from "@/pages/AdminOrderDetail";
+import { Privacy, Cookie, Terms, Withdrawal, LegalNotes, Accessibility } from "@/pages/Legal";
+import { SkipLink } from "@/components/shop/SkipLink";
 
 function Shell() {
   const location = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 
   // Process Emergent Google OAuth callback before anything else
   if (location.hash?.includes("session_id=")) {
@@ -33,9 +37,10 @@ function Shell() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F6F2]">
+      <SkipLink />
       <Header />
       <CartDrawer />
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/prodotti" element={<Catalog />} />
@@ -52,6 +57,12 @@ function Shell() {
           <Route path="/campioni" element={<Samples />} />
           <Route path="/preventivo-progetto" element={<QuoteRequest />} />
           <Route path="/ordine/:orderNumber" element={<TrackOrder />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/cookie" element={<Cookie />} />
+          <Route path="/condizioni-di-vendita" element={<Terms />} />
+          <Route path="/recesso" element={<Withdrawal />} />
+          <Route path="/note-legali" element={<LegalNotes />} />
+          <Route path="/accessibilita" element={<Accessibility />} />
         </Routes>
       </main>
       <Footer />

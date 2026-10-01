@@ -5,6 +5,7 @@ import { X, ArrowLeft, Landmark, CreditCard } from "lucide-react";
 import { useSamples, MAX_SAMPLES } from "@/context/SamplesContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { ConsentCheckbox } from "@/components/shop/ConsentCheckbox";
 
 const SAMPLE_SHIPPING_FEE = 6;
 
@@ -20,6 +21,7 @@ export default function Samples() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [sending, setSending] = useState(false);
+  const [okPrivacy, setOkPrivacy] = useState(false);
 
   const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -36,6 +38,7 @@ export default function Samples() {
           province: form.province, country: "IT",
         },
         note: form.note,
+        accept_privacy: okPrivacy,
         payment_method: paymentMethod,
         origin_url: window.location.origin + "/store",
       });
@@ -95,16 +98,16 @@ export default function Samples() {
 
           <form onSubmit={submit} className="bg-white border border-[#E2DDD5] p-6 space-y-3" data-testid="samples-form">
             <h3 className="eyebrow mb-2">I tuoi dati per la spedizione</h3>
-            <input className={inputCls} placeholder="Nome e cognome" required value={form.name} onChange={setF("name")} data-testid="samples-name" />
-            <input className={inputCls} type="email" placeholder="Email" required value={form.email} onChange={setF("email")} data-testid="samples-email" />
-            <input className={inputCls} placeholder="Telefono" value={form.phone} onChange={setF("phone")} />
-            <input className={inputCls} placeholder="Indirizzo" required value={form.line1} onChange={setF("line1")} />
+            <input className={inputCls} aria-label="Nome e cognome" placeholder="Nome e cognome" required value={form.name} onChange={setF("name")} data-testid="samples-name" />
+            <input className={inputCls} type="email" aria-label="Email" placeholder="Email" required value={form.email} onChange={setF("email")} data-testid="samples-email" />
+            <input className={inputCls} aria-label="Telefono" placeholder="Telefono" value={form.phone} onChange={setF("phone")} />
+            <input className={inputCls} aria-label="Indirizzo" placeholder="Indirizzo" required value={form.line1} onChange={setF("line1")} />
             <div className="grid grid-cols-3 gap-3">
-              <input className={inputCls} placeholder="Città" required value={form.city} onChange={setF("city")} />
-              <input className={inputCls} placeholder="CAP" required value={form.postal_code} onChange={setF("postal_code")} />
-              <input className={inputCls} placeholder="Prov." value={form.province} onChange={setF("province")} />
+              <input className={inputCls} aria-label="Città" placeholder="Città" required value={form.city} onChange={setF("city")} />
+              <input className={inputCls} aria-label="CAP" placeholder="CAP" required value={form.postal_code} onChange={setF("postal_code")} />
+              <input className={inputCls} aria-label="Prov." placeholder="Prov." value={form.province} onChange={setF("province")} />
             </div>
-            <textarea className={inputCls} rows={3} placeholder="Note (opzionale)" value={form.note} onChange={setF("note")} />
+            <textarea className={inputCls} rows={3} aria-label="Note (opzionale)" placeholder="Note (opzionale)" value={form.note} onChange={setF("note")} />
 
             <div className="pt-2 space-y-2">
               <p className="text-xs text-[#78716C] mb-1">Metodo di pagamento del contributo spese (&euro; {SAMPLE_SHIPPING_FEE.toFixed(2)})</p>
@@ -130,6 +133,9 @@ export default function Samples() {
               </label>
             </div>
 
+            <ConsentCheckbox checked={okPrivacy} onChange={setOkPrivacy} testid="samples-privacy">
+              Ho letto l'<Link to="/privacy" className="underline text-[#A64B32]">Informativa privacy</Link>: i miei dati saranno usati per spedire i campioni.
+            </ConsentCheckbox>
             <button type="submit" disabled={sending} data-testid="samples-submit"
               className="w-full bg-[#C05A3E] text-white py-3.5 text-sm font-semibold hover:bg-[#A64B32] transition-colors disabled:opacity-60">
               {sending ? "Attendere…" : paymentMethod === "card" ? "Procedi al pagamento" : "Invia richiesta campioni"}

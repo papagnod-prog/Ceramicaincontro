@@ -185,8 +185,12 @@ def _brand_wrap(inner: str) -> str:
         '</td></tr>'
         f'<tr><td style="padding:32px">{inner}</td></tr>'
         '<tr><td style="padding:20px 32px;border-top:1px solid #E2DDD5;color:#78716C;font-size:12px">'
-        'Ceramica Incontro S.r.l. — Sp 231 km 34,200, 70033 Corato (BA), Italia. '
-        'Tel. 080 898 4326 — P.IVA 00669920720<br>'
+        'Ceramica Incontro S.r.l. — S.P. 231, Km 34,200, 70033 Corato (BA), Italia. '
+        'P.IVA 00669920720 — REA BA-167294 — Capitale sociale &euro; 516.460,00<br>'
+        'PEC ceramicaincontro@pec-amt.com — info@ceramicaincontro.it — Tel. 080 898 4326<br>'
+        f'<a href="{STORE_URL}/privacy" style="color:#78716C">Informativa privacy</a> · '
+        f'<a href="{STORE_URL}/condizioni-di-vendita" style="color:#78716C">Condizioni di vendita</a> · '
+        f'<a href="{STORE_URL}/recesso" style="color:#78716C">Diritto di recesso</a><br>'
         'Non chiediamo mai password o dati della carta via email.'
         '</td></tr></table></td></tr></table>')
 
@@ -540,10 +544,30 @@ async def compute_regional_shipping(shipping_option_id: str, region: str, lines:
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
+TERMS_VERSION = "2026-10-01"
+
+
+def _consent_record(request: Request, kinds: List[str]) -> dict:
+    """Prova di accettazione (GDPR art. 7): data/ora, versione testi, IP troncato."""
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "") or "").split(",")[0].strip()
+    if ":" in ip:
+        ip = ":".join(ip.split(":")[:3]) + "::"
+    elif ip.count(".") == 3:
+        ip = ".".join(ip.split(".")[:3]) + ".0"
+    return {"accepted_at": now_utc().isoformat(), "terms_version": TERMS_VERSION,
+            "kinds": kinds, "ip_truncated": ip}
+
+
+def _require(flag: bool, msg: str):
+    if not flag:
+        raise HTTPException(400, msg)
+
+
 class RegisterInput(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str
+    accept_privacy: bool = False
 
 
 class LoginInput(BaseModel):
@@ -598,6 +622,8 @@ class CheckoutInput(BaseModel):
     billing: Optional[BillingInfo] = None
     origin_url: str
     payment_method: str = "bank_transfer"  # "bank_transfer" (bonifico) or "card" (Stripe, reserved for future launch).
+    accept_terms: bool = False      # condizioni di vendita + presa visione informativa privacy
+    accept_withdrawal_info: bool = False  # informativa sul diritto di recesso
 
 
 class ProductInput(BaseModel):
@@ -633,6 +659,7 @@ class SampleRequestInput(BaseModel):
     note: Optional[str] = ""
     payment_method: str = "card"
     origin_url: str = ""
+    accept_privacy: bool = False
 
 
 class SampleStatusInput(BaseModel):
@@ -652,6 +679,7 @@ class QuoteRequestInput(BaseModel):
     budget_range: Optional[str] = ""
     message: str = ""
     product_ids: List[str] = []
+    accept_privacy: bool = False
 
 
 class QuoteStatusInput(BaseModel):
@@ -744,13 +772,15 @@ async def require_admin(request: Request) -> dict:
 # Auth routes
 # ---------------------------------------------------------------------------
 @api_router.post("/auth/register")
-async def register(data: RegisterInput, response: Response):
+async def register(data: RegisterInput, response: Response, request: Request):
+    _require(data.accept_privacy, "Per registrarti devi confermare di aver letto l'informativa privacy.")
     email = data.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(400, "Email già registrata")
     user = {"id": str(uuid.uuid4()), "email": email, "name": data.name,
             "password_hash": hash_password(data.password), "role": "customer",
-            "picture": "", "auth_provider": "password", "created_at": now_utc().isoformat()}
+            "picture": "", "auth_provider": "password", "created_at": now_utc().isoformat(),
+            "consents": _consent_record(request, ["privacy"])}
     await db.users.insert_one(user)
     token = create_access_token(user["id"], email)
     set_auth_cookie(response, "access_token", token, 604800)
@@ -1088,6 +1118,8 @@ async def admin_set_payment_settings(data: PaymentSettingsInput, admin: dict = D
 # ---------------------------------------------------------------------------
 @api_router.post("/checkout")
 async def create_checkout(data: CheckoutInput, request: Request):
+    _require(data.accept_terms, "Per procedere devi accettare le Condizioni di vendita e confermare di aver letto l'informativa privacy.")
+    _require(data.accept_withdrawal_info, "Per procedere devi confermare di aver letto l'informativa sul diritto di recesso.")
     subtotal, weight, lines = await _price_cart(data.items)
     if not lines:
         raise HTTPException(400, "Carrello vuoto")
@@ -1126,6 +1158,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
         "vat_amount_total": vat_amount_total,
         "total": total, "payment_method": payment_method,
         "tracking": "",
+        "consents": _consent_record(request, ["terms", "privacy", "withdrawal_info"]),
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
 
     if payment_method == "card":
@@ -1361,6 +1394,7 @@ SAMPLE_STATUS_OPTS = ["requested", "preparing", "shipped", "delivered"]
 
 @api_router.post("/samples/request")
 async def request_samples(data: SampleRequestInput, request: Request):
+    _require(data.accept_privacy, "Per richiedere i campioni devi confermare di aver letto l'informativa privacy.")
     seen = set()
     items = []
     for it in data.items:
@@ -1390,6 +1424,7 @@ async def request_samples(data: SampleRequestInput, request: Request):
         "note": data.note or "", "items": items,
         "payment_method": payment_method, "shipping_fee": SAMPLE_SHIPPING_FEE,
         "tracking": "",
+        "consents": _consent_record(request, ["privacy"]),
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
 
     if payment_method == "card":
@@ -1476,7 +1511,8 @@ QUOTE_STATUS_OPTS = ["new", "in_review", "quoted", "won", "lost"]
 
 
 @api_router.post("/quotes/request")
-async def request_quote(data: QuoteRequestInput):
+async def request_quote(data: QuoteRequestInput, request: Request):
+    _require(data.accept_privacy, "Per inviare la richiesta devi confermare di aver letto l'informativa privacy.")
     products = []
     for pid in data.product_ids[:20]:
         p = await db.products.find_one({"id": pid}, {"_id": 0})
@@ -1492,6 +1528,7 @@ async def request_quote(data: QuoteRequestInput):
         "estimated_sqm": data.estimated_sqm, "budget_range": data.budget_range or "",
         "message": data.message, "products": products,
         "status": "new", "quoted_amount": None, "admin_note": "",
+        "consents": _consent_record(request, ["privacy"]),
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
     await db.quote_requests.insert_one(q)
 

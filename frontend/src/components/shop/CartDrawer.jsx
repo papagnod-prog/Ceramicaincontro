@@ -28,7 +28,7 @@ export const CartDrawer = () => {
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2DDD5]">
           <h2 className="font-serif-display text-2xl">Carrello ({count})</h2>
-          <button onClick={() => setOpen(false)} data-testid="cart-close-btn" className="p-2 hover:bg-[#F1EEE8] rounded-full">
+          <button aria-label="Chiudi carrello" onClick={() => setOpen(false)} data-testid="cart-close-btn" className="p-2 hover:bg-[#F1EEE8] rounded-full">
             <X className="w-5 h-5" />
           </button>
         </div>

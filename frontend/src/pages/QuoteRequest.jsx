@@ -7,6 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { ConsentCheckbox } from "@/components/shop/ConsentCheckbox";
 
 const PROFESSIONS = ["Architetto", "Interior Designer", "Impresa di costruzioni", "Rivenditore", "Altro professionista"];
 const PROJECT_TYPES = ["Residenziale", "Commerciale", "Hospitality / Ristorazione", "Uffici", "Altro"];
@@ -22,6 +23,7 @@ export default function QuoteRequest() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null);
+  const [okPrivacy, setOkPrivacy] = useState(false);
 
   const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -33,6 +35,7 @@ export default function QuoteRequest() {
         ...form,
         estimated_sqm: form.estimated_sqm ? parseFloat(form.estimated_sqm) : null,
         product_ids: [],
+        accept_privacy: okPrivacy,
       });
       setDone(data.request_number);
       toast.success("Richiesta di preventivo inviata!");
@@ -75,10 +78,10 @@ export default function QuoteRequest() {
 
       <form onSubmit={submit} className="bg-white border border-[#E2DDD5] p-6 space-y-4" data-testid="quote-form">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input className={inputCls} placeholder="Nome e cognome" required value={form.name} onChange={setF("name")} data-testid="quote-name" />
-          <input className={inputCls} type="email" placeholder="Email" required value={form.email} onChange={setF("email")} data-testid="quote-email" />
-          <input className={inputCls} placeholder="Telefono" value={form.phone} onChange={setF("phone")} />
-          <input className={inputCls} placeholder="Studio / Azienda" value={form.company} onChange={setF("company")} />
+          <input className={inputCls} aria-label="Nome e cognome" placeholder="Nome e cognome" required value={form.name} onChange={setF("name")} data-testid="quote-name" />
+          <input className={inputCls} type="email" aria-label="Email" placeholder="Email" required value={form.email} onChange={setF("email")} data-testid="quote-email" />
+          <input className={inputCls} aria-label="Telefono" placeholder="Telefono" value={form.phone} onChange={setF("phone")} />
+          <input className={inputCls} aria-label="Studio / Azienda" placeholder="Studio / Azienda" value={form.company} onChange={setF("company")} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -103,14 +106,17 @@ export default function QuoteRequest() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <input className={inputCls} placeholder="Città del progetto" value={form.city} onChange={setF("city")} />
-          <input className={inputCls} type="number" min="0" step="0.1" placeholder="Superficie stimata (m²)" value={form.estimated_sqm} onChange={setF("estimated_sqm")} data-testid="quote-sqm" />
-          <input className={inputCls} placeholder="Budget indicativo (opz.)" value={form.budget_range} onChange={setF("budget_range")} />
+          <input className={inputCls} aria-label="Città del progetto" placeholder="Città del progetto" value={form.city} onChange={setF("city")} />
+          <input className={inputCls} type="number" min="0" step="0.1" aria-label="Superficie stimata (m²)" placeholder="Superficie stimata (m²)" value={form.estimated_sqm} onChange={setF("estimated_sqm")} data-testid="quote-sqm" />
+          <input className={inputCls} aria-label="Budget indicativo (opz.)" placeholder="Budget indicativo (opz.)" value={form.budget_range} onChange={setF("budget_range")} />
         </div>
 
-        <textarea className={inputCls} rows={5} placeholder="Descrivi il progetto: prodotti di interesse, tempistiche, quantità stimate…"
+        <textarea className={inputCls} rows={5} aria-label="Descrivi il progetto: prodotti di interesse, tempistiche, quantità stimate…" placeholder="Descrivi il progetto: prodotti di interesse, tempistiche, quantità stimate…"
           required value={form.message} onChange={setF("message")} data-testid="quote-message" />
 
+        <ConsentCheckbox checked={okPrivacy} onChange={setOkPrivacy} testid="quote-privacy">
+          Ho letto l'<Link to="/privacy" className="underline text-[#A64B32]">Informativa privacy</Link>: i miei dati saranno usati per rispondere alla richiesta.
+        </ConsentCheckbox>
         <button type="submit" disabled={sending} data-testid="quote-submit"
           className="w-full bg-[#C05A3E] text-white py-3.5 text-sm font-semibold hover:bg-[#A64B32] transition-colors disabled:opacity-60">
           {sending ? "Invio in corso…" : "Richiedi preventivo personalizzato"}

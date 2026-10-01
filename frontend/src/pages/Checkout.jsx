@@ -6,6 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { ShieldCheck, Truck, Mail } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { ConsentCheckbox } from "@/components/shop/ConsentCheckbox";
+import { Link } from "react-router-dom";
 
 export default function Checkout() {
   usePageTitle("Checkout");
@@ -26,6 +28,8 @@ export default function Checkout() {
     vat_amount_products: 0, vat_amount_shipping: 0, vat_amount_total: 0,
   });
   const [busy, setBusy] = useState(false);
+  const [okTerms, setOkTerms] = useState(false);
+  const [okWithdrawal, setOkWithdrawal] = useState(false);
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
@@ -70,7 +74,7 @@ export default function Checkout() {
   const isAzienda = customerType === "azienda";
 
   const contactMailto = () => {
-    const email = quote.contact_email || "contatto@ceramicaincontro.it";
+    const email = quote.contact_email || "info@ceramicaincontro.it";
     const subject = "Richiesta preventivo spedizione — Ceramica Incontro";
     const itemsList = items.map((i) => `- ${i.name} (Qtà ${i.quantity})`).join("\n");
     const body =
@@ -110,6 +114,8 @@ export default function Checkout() {
             }
           : { is_business: false },
         payment_method: paymentMethod,
+        accept_terms: okTerms,
+        accept_withdrawal_info: okWithdrawal,
         origin_url: window.location.origin + "/store",
       });
       clear();
@@ -139,9 +145,9 @@ export default function Checkout() {
           <section>
             <h2 className="eyebrow mb-4 text-[#C05A3E]">1 · Contatti</h2>
             <div className="grid sm:grid-cols-2 gap-4">
-              <input className={inputCls} placeholder="Email" type="email" required value={form.email} onChange={set("email")} data-testid="checkout-email" />
-              <input className={inputCls} placeholder="Nome e cognome" required value={form.name} onChange={set("name")} data-testid="checkout-name" />
-              <input className={inputCls + " sm:col-span-2"} placeholder="Telefono" value={form.phone} onChange={set("phone")} data-testid="checkout-phone" />
+              <input className={inputCls} aria-label="Email" placeholder="Email" type="email" required value={form.email} onChange={set("email")} data-testid="checkout-email" />
+              <input className={inputCls} aria-label="Nome e cognome" placeholder="Nome e cognome" required value={form.name} onChange={set("name")} data-testid="checkout-name" />
+              <input className={inputCls + " sm:col-span-2"} aria-label="Telefono" placeholder="Telefono" value={form.phone} onChange={set("phone")} data-testid="checkout-phone" />
             </div>
           </section>
 
@@ -149,11 +155,11 @@ export default function Checkout() {
           <section>
             <h2 className="eyebrow mb-4 text-[#C05A3E]">2 · Indirizzo di spedizione</h2>
             <div className="grid sm:grid-cols-2 gap-4">
-              <input className={inputCls + " sm:col-span-2"} placeholder="Indirizzo e civico" required value={form.line1} onChange={set("line1")} data-testid="checkout-line1" />
-              <input className={inputCls} placeholder="Città" required value={form.city} onChange={set("city")} data-testid="checkout-city" />
-              <input className={inputCls} placeholder="CAP" required value={form.postal_code} onChange={set("postal_code")} data-testid="checkout-cap" />
-              <input className={inputCls} placeholder="Provincia (es. MO)" value={form.province} onChange={set("province")} data-testid="checkout-province" />
-              <select className={inputCls} required value={form.region} onChange={set("region")} data-testid="checkout-region">
+              <input className={inputCls + " sm:col-span-2"} aria-label="Indirizzo e civico" placeholder="Indirizzo e civico" required value={form.line1} onChange={set("line1")} data-testid="checkout-line1" />
+              <input className={inputCls} aria-label="Città" placeholder="Città" required value={form.city} onChange={set("city")} data-testid="checkout-city" />
+              <input className={inputCls} aria-label="CAP" placeholder="CAP" required value={form.postal_code} onChange={set("postal_code")} data-testid="checkout-cap" />
+              <input className={inputCls} aria-label="Provincia (es. MO)" placeholder="Provincia (es. MO)" value={form.province} onChange={set("province")} data-testid="checkout-province" />
+              <select aria-label="Regione" className={inputCls} required value={form.region} onChange={set("region")} data-testid="checkout-region">
                 <option value="">Seleziona regione…</option>
                 {regions.map((r) => (
                   <option key={r} value={r}>{r}</option>
@@ -178,12 +184,12 @@ export default function Checkout() {
 
             {isAzienda && (
               <div className="grid sm:grid-cols-2 gap-4" data-testid="checkout-billing-azienda">
-                <input className={inputCls} placeholder="Ragione sociale" required value={form.company} onChange={set("company")} data-testid="checkout-company" />
-                <input className={inputCls} placeholder="Partita IVA" required value={form.vat_number} onChange={set("vat_number")} data-testid="checkout-vat" />
-                <input className={inputCls} placeholder="Codice Fiscale" value={form.codice_fiscale} onChange={set("codice_fiscale")} data-testid="checkout-cf" />
+                <input className={inputCls} aria-label="Ragione sociale" placeholder="Ragione sociale" required value={form.company} onChange={set("company")} data-testid="checkout-company" />
+                <input className={inputCls} aria-label="Partita IVA" placeholder="Partita IVA" required value={form.vat_number} onChange={set("vat_number")} data-testid="checkout-vat" />
+                <input className={inputCls} aria-label="Codice Fiscale" placeholder="Codice Fiscale" value={form.codice_fiscale} onChange={set("codice_fiscale")} data-testid="checkout-cf" />
                 <div />
-                <input className={inputCls} placeholder="Codice SDI" value={form.sdi_code} onChange={set("sdi_code")} data-testid="checkout-sdi" />
-                <input className={inputCls} placeholder="oppure indirizzo PEC" type="email" value={form.pec_address} onChange={set("pec_address")} data-testid="checkout-pec" />
+                <input className={inputCls} aria-label="Codice SDI" placeholder="Codice SDI" value={form.sdi_code} onChange={set("sdi_code")} data-testid="checkout-sdi" />
+                <input className={inputCls} aria-label="oppure indirizzo PEC" placeholder="oppure indirizzo PEC" type="email" value={form.pec_address} onChange={set("pec_address")} data-testid="checkout-pec" />
                 <p className="text-xs text-[#78716C] sm:col-span-2">Indica almeno uno dei due, Codice SDI o PEC, per la fattura elettronica.</p>
               </div>
             )}
@@ -304,16 +310,24 @@ export default function Checkout() {
               </div>
               <p className="text-[0.7rem] text-[#78716C]">IVA inclusa nel totale</p>
             </div>
+            <div className="space-y-3 mt-5">
+              <ConsentCheckbox checked={okTerms} onChange={setOkTerms} testid="checkout-terms">
+                Ho letto e accetto le <Link to="/condizioni-di-vendita" target="_blank" className="underline text-[#A64B32]">Condizioni di vendita</Link> e ho preso visione dell'<Link to="/privacy" target="_blank" className="underline text-[#A64B32]">Informativa privacy</Link>.
+              </ConsentCheckbox>
+              <ConsentCheckbox checked={okWithdrawal} onChange={setOkWithdrawal} testid="checkout-withdrawal">
+                Ho letto le informazioni sul <Link to="/recesso" target="_blank" className="underline text-[#A64B32]">diritto di recesso</Link> (14 giorni, per i consumatori).
+              </ConsentCheckbox>
+            </div>
             <button
               type="submit"
               data-testid="checkout-place-order-btn"
               disabled={busy || (!!form.region && !quote.available)}
               className="w-full bg-[#C05A3E] text-white py-4 text-sm font-semibold tracking-wide hover:bg-[#A64B32] transition-colors mt-5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {busy ? "Invio ordine…" : "Conferma ordine"}
+              {busy ? "Invio ordine…" : "Ordine con obbligo di pagamento"}
             </button>
             <div className="flex items-center gap-2 text-xs text-[#78716C] mt-4">
-              <ShieldCheck className="w-4 h-4 text-[#6B7A6E]" /> Pagamento sicuro e crittografato
+              <ShieldCheck className="w-4 h-4 text-[#6B7A6E]" /> Pagamento tramite bonifico bancario
             </div>
             <div className="flex items-center gap-2 text-xs text-[#78716C] mt-1">
               <Truck className="w-4 h-4 text-[#6B7A6E]" /> Spedizione in tutta Italia

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { COMPANY } from "@/lib/company";
 
 export const Footer = () => (
   <footer className="bg-[#1C1917] text-[#F8F6F2] mt-24">
@@ -44,16 +45,27 @@ export const Footer = () => (
         <div>
           <h4 className="eyebrow mb-4 text-[#78716C]">Contatti</h4>
           <ul className="space-y-2 text-sm text-[#D6D3D1]">
-            <li>Sp 231 km 34,200</li>
+            <li>S.P. 231, Km 34,200</li>
             <li>70033 Corato (BA), Italia</li>
-            <li>Tel. 080 898 4326</li>
-            <li>contatto@ceramicaincontro.it</li>
+            <li><a href={`tel:${COMPANY.phone.replace(/\s/g, "")}`} className="hover:text-white">Tel. {COMPANY.phone}</a></li>
+            <li><a href={`mailto:${COMPANY.email}`} className="hover:text-white">{COMPANY.email}</a></li>
+            <li>PEC: {COMPANY.pec}</li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-[#3A3733] mt-12 pt-6 text-xs text-[#78716C] flex flex-col sm:flex-row justify-between gap-2">
-        <span>© {new Date().getFullYear()} Ceramica Incontro S.r.l. — P.IVA 00669920720</span>
-        <span>Prezzi iva esclusa · Pagamenti sicuri con Stripe</span>
+      <div className="border-t border-[#3A3733] mt-12 pt-6 text-xs text-[#A8A29E] space-y-3">
+        <p>
+          © {new Date().getFullYear()} {COMPANY.name} — Sede legale: {COMPANY.address} — P.IVA {COMPANY.vat} — REA {COMPANY.rea} — Capitale sociale € {COMPANY.capital}
+        </p>
+        <p>Prezzi IVA esclusa ove indicato · Pagamento tramite bonifico bancario</p>
+        <nav aria-label="Informazioni legali" className="flex flex-wrap gap-x-5 gap-y-2">
+          <Link to="/privacy" className="hover:text-white underline">Privacy</Link>
+          <Link to="/cookie" className="hover:text-white underline">Cookie</Link>
+          <Link to="/condizioni-di-vendita" className="hover:text-white underline">Condizioni di vendita</Link>
+          <Link to="/recesso" className="hover:text-white underline">Diritto di recesso</Link>
+          <Link to="/note-legali" className="hover:text-white underline">Note legali</Link>
+          <Link to="/accessibilita" className="hover:text-white underline">Accessibilità</Link>
+        </nav>
       </div>
     </div>
   </footer>
