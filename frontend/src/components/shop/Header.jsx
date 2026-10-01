@@ -55,6 +55,13 @@ export const Header = () => {
             >
               Preventivi Progetto
             </Link>
+            <a
+              href="https://ceramicaincontro.it"
+              data-testid="nav-corporate-link"
+              className="text-sm font-medium text-[#57534E] hover:text-[#1C1917] ci-link-underline transition-colors"
+            >
+              Sito aziendale
+            </a>
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-3">

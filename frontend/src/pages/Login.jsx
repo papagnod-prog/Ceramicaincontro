@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formatApiErrorDetail } from "@/lib/api";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
-const SIDE_IMG = "https://images.unsplash.com/photo-1710762797203-707c26233cee?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000";
+const SIDE_IMG = "/store/img/login.jpg";
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 const googleLogin = () => {

@@ -6,7 +6,7 @@ import { usePageTitle } from "@/hooks/usePageTitle";
 import { ConsentCheckbox } from "@/components/shop/ConsentCheckbox";
 import { Link } from "react-router-dom";
 
-const SIDE_IMG = "https://images.unsplash.com/photo-1673731535556-665e8b8041fe?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000";
+const SIDE_IMG = "/store/img/paper-glass.jpg";
 
 export default function Register() {
   usePageTitle("Registrati");

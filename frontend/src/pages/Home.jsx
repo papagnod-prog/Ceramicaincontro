@@ -5,13 +5,13 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import { ArrowRight } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
-const HERO = "https://images.unsplash.com/photo-1763485956232-45c74e1e8610?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600";
+const HERO = "/store/img/hero.jpg";
 
 const COLLECTION_TILES = [
-  { name: "SMUSSO", tag: "Il battiscopa a 30°", img: "https://images.unsplash.com/photo-1489272889853-8093472c6f42?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
-  { name: "Moon Spots", tag: "Rivestimento 9x60", img: "https://images.unsplash.com/photo-1512119706465-5f60cf4d3e2d?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
-  { name: "Stony", tag: "Effetto pietra", img: "https://images.unsplash.com/photo-1763485955425-a61e722832ca?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
-  { name: "Paper Glass", tag: "Riflessi di vetro", img: "https://images.unsplash.com/photo-1673731535556-665e8b8041fe?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
+  { name: "SMUSSO", tag: "Il battiscopa a 30°", img: "/store/img/smusso.jpg" },
+  { name: "Moon Spots", tag: "Rivestimento 9x60", img: "/store/img/moon-spots.jpg" },
+  { name: "Stony", tag: "Effetto pietra", img: "/store/img/stony.jpg" },
+  { name: "Paper Glass", tag: "Riflessi di vetro", img: "/store/img/paper-glass.jpg" },
 ];
 
 export default function Home() {
