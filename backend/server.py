@@ -56,13 +56,19 @@ EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
 # The React SPA is served under the /store path (see frontend basename), so any link
 # sent by email must point there, not at the bare domain root.
-STORE_URL = FRONTEND_URL.rstrip("/") + "/store"
+from urllib.parse import urlparse as _urlparse
+_fu = _urlparse(FRONTEND_URL)
+# Solo schema+dominio: eventuali path nella variabile (es. /shop) vengono ignorati,
+# perché lo store sta SEMPRE sotto /store.
+SITE_ROOT = f"{_fu.scheme}://{_fu.netloc}" if _fu.scheme and _fu.netloc else "https://ceramicaincontro.it"
+STORE_URL = SITE_ROOT + "/store"
 
 
 def _safe_origin(url: str) -> str:
     """Evita redirect aperti: success/cancel URL di Stripe devono restare sul nostro store."""
     url = (url or "").rstrip("/")
-    allowed = (STORE_URL, "http://localhost:3000/store", "http://localhost:3000")
+    allowed = (STORE_URL, "https://ceramicaincontro.it/store", "https://www.ceramicaincontro.it/store",
+               "http://localhost:3000/store", "http://localhost:3000")
     return url if url in allowed else STORE_URL
 
 
