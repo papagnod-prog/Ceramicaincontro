@@ -1209,7 +1209,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
             locale="it",
             payment_intent_data={"description": f"Ordine {order_number} — Ceramica Incontro",
                                  "metadata": {"order_number": order_number}},
-            success_url=f"{origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+            success_url=f"{origin_url}/payment/success?sid={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{origin_url}/payment/cancel",
             metadata={"order_id": order_id, "order_number": order_number})
 
@@ -1462,7 +1462,7 @@ async def request_samples(data: SampleRequestInput, request: Request):
                 "quantity": 1}],
             mode="payment",
             customer_email=data.customer.email,
-            success_url=f"{origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}&kind=sample",
+            success_url=f"{origin_url}/payment/success?sid={{CHECKOUT_SESSION_ID}}&kind=sample",
             cancel_url=f"{origin_url}/payment/cancel",
             metadata={"sample_request_id": req_id, "request_number": req_number, "kind": "sample"})
 

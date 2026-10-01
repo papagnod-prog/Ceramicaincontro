@@ -7,7 +7,7 @@ import { usePageTitle } from "@/hooks/usePageTitle";
 export function PaymentSuccess() {
   usePageTitle("Pagamento completato");
   const [params] = useSearchParams();
-  const sessionId = params.get("session_id");
+  const sessionId = params.get("sid") || params.get("session_id");
   const [status, setStatus] = useState("checking"); // checking, paid, error, timeout
   const [orderNumber, setOrderNumber] = useState(null);
   const isSample = params.get("kind") === "sample";
