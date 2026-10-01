@@ -7,6 +7,7 @@ export const COMPANY = {
   pec: "ceramicaincontro@pec-amt.com",
   email: "info@ceramicaincontro.it",
   phone: "080 898 4326",
+  phoneIntl: "+39 080 898 4326",
   site: "https://ceramicaincontro.it",
 };
 export const TERMS_VERSION = "2026-10-01";

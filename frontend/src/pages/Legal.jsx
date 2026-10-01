@@ -22,8 +22,8 @@ const Shell = ({ title, children }) => {
 
 const Owner = () => (
   <p>
-    <strong>{COMPANY.name}</strong> — sede legale: {COMPANY.address} — P.IVA {COMPANY.vat} — REA {COMPANY.rea} — capitale
-    sociale € {COMPANY.capital} <Todo>versato i.v.? codice fiscale</Todo> — PEC {COMPANY.pec} — email{" "}
+    <strong>{COMPANY.name}</strong> — sede legale: {COMPANY.address} — C.F. e P.IVA {COMPANY.vat} — REA {COMPANY.rea} — capitale
+    sociale € {COMPANY.capital} <Todo>aggiungere "i.v." solo se interamente versato</Todo> — PEC {COMPANY.pec} — email{" "}
     <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a> — tel. {COMPANY.phone}.
   </p>
 );
@@ -107,7 +107,7 @@ export const Terms = () => (
     <h2>9. Assistenza e reclami</h2>
     <p>Per assistenza: {COMPANY.email}, tel. {COMPANY.phone}. I consumatori possono utilizzare la piattaforma europea ODR per la risoluzione online delle controversie: <a href="https://ec.europa.eu/consumers/odr" rel="noopener noreferrer">ec.europa.eu/consumers/odr</a>.</p>
     <h2>10. Legge applicabile e foro</h2>
-    <p>Legge italiana. Per i consumatori è competente il foro di residenza o domicilio del consumatore; per i professionisti il foro di <Todo>foro competente, es. Trani/Bari</Todo>.</p>
+    <p>Legge italiana. Per i consumatori è competente il foro di residenza o domicilio del consumatore; per i professionisti il foro di Trani.</p>
     <h2>11. Privacy</h2>
     <p>I dati personali sono trattati secondo l'<Link to="/privacy">Informativa privacy</Link>.</p>
   </Shell>
