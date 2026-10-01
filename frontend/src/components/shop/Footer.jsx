@@ -69,6 +69,7 @@ export const Footer = () => (
           <Link to="/recesso" className="hover:text-white underline">Diritto di recesso</Link>
           <Link to="/note-legali" className="hover:text-white underline">Note legali</Link>
           <Link to="/accessibilita" className="hover:text-white underline">Accessibilità</Link>
+          <Link to="/assistente-ia" className="hover:text-white underline">Assistente IA</Link>
         </nav>
       </div>
     </div>

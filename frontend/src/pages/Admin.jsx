@@ -40,6 +40,7 @@ export default function Admin() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("dashboard");
   const [stats, setStats] = useState(null);
+  const [aiUse, setAiUse] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [samples, setSamples] = useState([]);
@@ -73,6 +74,7 @@ export default function Admin() {
   }, [loading, user, navigate]);
 
   const loadAll = () => {
+    api.get("/admin/assistant/usage").then(({ data }) => setAiUse(data)).catch(() => {});
     api.get("/admin/stats").then(({ data }) => setStats(data)).catch(() => {});
     api.get("/products").then(({ data }) => setProducts(data));
     api.get("/admin/orders").then(({ data }) => setOrders(data)).catch(() => {});
@@ -317,6 +319,9 @@ export default function Admin() {
       </div>
 
       {/* Dashboard */}
+      {tab === "dashboard" && aiUse && (
+        <p className="text-sm mb-4" data-testid="admin-ai-usage">Assistente Glaze: {aiUse.enabled ? "attivo" : "spento"} · mese ${aiUse.month_usd} / ${aiUse.monthly_cap_usd} · oggi ${aiUse.day_usd} / ${aiUse.daily_cap_usd} · {aiUse.calls_month} chiamate{aiUse.over_cap ? " · TETTO RAGGIUNTO" : ""}</p>
+      )}
       {tab === "dashboard" && stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5" data-testid="admin-dashboard">
           {[

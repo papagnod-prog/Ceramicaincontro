@@ -47,9 +47,9 @@ export const Privacy = () => (
     <h2>3. Prova di accettazione</h2>
     <p>Quando accetti le condizioni o confermi di aver letto questa informativa, registriamo data e ora, versione dei testi e una versione abbreviata dell'indirizzo IP, a prova dell'accettazione.</p>
     <h2>4. Destinatari</h2>
-    <p>I dati sono trattati da personale autorizzato e da fornitori nominati responsabili del trattamento: hosting del sito Aruba S.p.A. e infrastruttura dello store <Todo>fornitore hosting API (Render) e regione</Todo>, database <Todo>fornitore database/regione</Todo>, invio email transazionali <Todo>fornitore SMTP</Todo>, corrieri per la consegna (GLS, Bartolini/BRT, Fercam), Stripe Payments Europe Ltd. per i pagamenti con carta, istituto di credito per il bonifico, consulenti fiscali e amministrativi.</p>
+    <p>I dati sono trattati da personale autorizzato e da fornitori nominati responsabili del trattamento: hosting del sito Aruba S.p.A. e infrastruttura dello store <Todo>fornitore hosting API (Render) e regione</Todo>, database <Todo>fornitore database/regione</Todo>, invio email transazionali <Todo>fornitore SMTP</Todo>, corrieri per la consegna (GLS, Bartolini/BRT, Fercam), Stripe Payments Europe Ltd. per i pagamenti con carta, Anthropic per l'assistente IA, istituto di credito per il bonifico, consulenti fiscali e amministrativi.</p>
     <h2>5. Trasferimenti extra UE</h2>
-    <p>Dove un fornitore tratti dati fuori dallo Spazio Economico Europeo, il trasferimento avviene con le garanzie previste dagli artt. 44-49 GDPR (decisione di adeguatezza, EU-US Data Privacy Framework o clausole contrattuali standard). Stripe può trattare dati anche fuori dallo SEE con tali garanzie <Todo>verifica per ciascun fornitore</Todo>.</p>
+    <p>Dove un fornitore tratti dati fuori dallo Spazio Economico Europeo, il trasferimento avviene con le garanzie previste dagli artt. 44-49 GDPR (decisione di adeguatezza, EU-US Data Privacy Framework o clausole contrattuali standard). Stripe e Anthropic (assistente IA) possono trattare dati anche fuori dallo SEE, con clausole contrattuali standard e altre garanzie previste <Todo>verifica per ciascun fornitore</Todo>.</p>
     <h2>6. Cookie e strumenti di tracciamento</h2>
     <p>Questo negozio usa solo memorizzazione tecnica nel browser (carrello, richiesta campioni, sessione di accesso), non soggetta a consenso. Non utilizza strumenti di analisi né pubblicità. Dettagli nella <Link to="/cookie">Cookie policy</Link>.</p>
     <h2>7. I tuoi diritti</h2>
@@ -57,7 +57,7 @@ export const Privacy = () => (
     <h2>8. Conferimento dei dati</h2>
     <p>I dati richiesti nei moduli sono necessari per completare l'ordine o rispondere alla tua richiesta; senza di essi non possiamo darvi seguito.</p>
     <h2>9. Assistente virtuale</h2>
-    <p>Sul sito WordPress è presente un assistente basato su regole automatiche, che dichiara di non essere una persona. L'informativa dedicata è pubblicata sul sito principale.</p>
+    <p>Il negozio include «Glaze», un assistente basato su intelligenza artificiale. Le domande scritte in chat sono inviate al fornitore Anthropic, che le elabora come responsabile del trattamento. Dettagli nella pagina <Link to="/assistente-ia">Assistente IA</Link>.</p>
   </Shell>
 );
 
@@ -166,5 +166,25 @@ export const Accessibility = () => (
     <p>Per segnalare problemi di accessibilità o richiedere contenuti in formato alternativo: <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>, tel. {COMPANY.phone}. Rispondiamo entro <Todo>tempo di risposta, es. 15 giorni</Todo>.</p>
     <h2>Procedura di attuazione</h2>
     <p>In caso di risposta insoddisfacente puoi rivolgerti all'Agenzia per l'Italia Digitale (AgID): <a href="https://www.agid.gov.it" rel="noopener noreferrer">www.agid.gov.it</a>.</p>
+  </Shell>
+);
+
+export const AiAssistant = () => (
+  <Shell title="Assistente IA «Glaze»">
+    <p>Glaze è un assistente automatico basato su intelligenza artificiale: <strong>non è una persona</strong>. Può sbagliare, quindi le informazioni importanti (prezzi, tempi, condizioni) vanno verificate in fase d'ordine o con il nostro personale.</p>
+    <h2>Cosa fa</h2>
+    <ul>
+      <li>Risponde su catalogo, confezioni e m², spedizioni, pagamenti, recesso, campioni e preventivi.</li>
+      <li>Mostra lo stato di un ordine solo dopo la verifica di numero ordine ed email.</li>
+      <li>Non prende decisioni su resi, rimborsi o eccezioni: per quelle ti passa a una persona.</li>
+    </ul>
+    <h2>Dati e privacy</h2>
+    <ul>
+      <li>Il testo che scrivi è inviato ad Anthropic (fornitore di IA, responsabile del trattamento con accordo di trattamento dati) per generare la risposta; può essere trattato fuori dallo SEE con clausole contrattuali standard.</li>
+      <li>Non salviamo le conversazioni: la cronologia resta nel tuo browser finché chiudi o ricarichi la pagina.</li>
+      <li>Email e numeri di telefono scritti in chat vengono oscurati prima dell'invio; non scrivere carte di pagamento, IBAN o altri dati riservati.</li>
+      <li>Se chiedi di parlare con una persona, conserviamo nome, email, messaggio e riepilogo della chat per rispondere, per <Todo>periodo di conservazione</Todo>.</li>
+    </ul>
+    <p>Base giuridica: esecuzione di misure precontrattuali/contrattuali e legittimo interesse a fornire assistenza (art. 6 GDPR). Diritti e contatti nell'<Link to="/privacy">Informativa privacy</Link>. Assistenza umana: <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>, {COMPANY.phone}.</p>
   </Shell>
 );

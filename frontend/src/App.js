@@ -23,7 +23,8 @@ import Samples from "@/pages/Samples";
 import QuoteRequest from "@/pages/QuoteRequest";
 import TrackOrder from "@/pages/TrackOrder";
 import AdminOrderDetail from "@/pages/AdminOrderDetail";
-import { Privacy, Cookie, Terms, Withdrawal, LegalNotes, Accessibility } from "@/pages/Legal";
+import { Privacy, Cookie, Terms, Withdrawal, LegalNotes, Accessibility, AiAssistant } from "@/pages/Legal";
+import { Assistant } from "@/components/shop/Assistant";
 import { SkipLink } from "@/components/shop/SkipLink";
 
 function Shell() {
@@ -63,9 +64,11 @@ function Shell() {
           <Route path="/recesso" element={<Withdrawal />} />
           <Route path="/note-legali" element={<LegalNotes />} />
           <Route path="/accessibilita" element={<Accessibility />} />
+          <Route path="/assistente-ia" element={<AiAssistant />} />
         </Routes>
       </main>
       <Footer />
+      <Assistant />
     </div>
   );
 }

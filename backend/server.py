@@ -1696,6 +1696,7 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await db.products.create_index("collection")
     await db.orders.create_index("user_id")
+    await db.assistant_rl.create_index("at", expireAfterSeconds=7200)
     await db.user_sessions.create_index("session_token")
     await db.sample_requests.create_index("user_id")
     await db.quote_requests.create_index("status")
@@ -1712,6 +1713,15 @@ async def startup():
     await seed_products()
     logger.info("Ceramica Incontro shop ready.")
 
+
+import assistant as _assistant
+_assistant.register(api_router, {
+    "db": db, "logger": logger, "Depends": Depends, "require_admin": require_admin,
+    "price_cart": _price_cart, "quote_shipping": _quote_shipping, "get_vat_rates": get_vat_rates,
+    "compute_vat": compute_vat, "CartItem": CartItem, "order_status_labels": ORDER_STATUS_LABEL_IT,
+    "safe_send": _safe_send, "brand_wrap": _brand_wrap, "consent_record": _consent_record,
+    "require": _require, "jwt_secret": JWT_SECRET,
+})
 
 app.include_router(api_router)
 
