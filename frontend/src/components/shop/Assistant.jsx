@@ -33,10 +33,16 @@ export function Assistant() {
   useEffect(() => { endRef.current?.scrollIntoView?.({ block: "end" }); }, [msgs, panel, card, busy]);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (e.key === "Escape") { setOpen(false); setTimeout(() => btnRef.current?.focus(), 0); } };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open]);
+
   if (!enabled) return null;
 
   const close = () => { setOpen(false); setTimeout(() => btnRef.current?.focus(), 0); };
-  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
   const userCount = msgs.filter((m) => m.role === "user").length;
   const limitReached = userCount >= MAX_SENT;
 
@@ -124,7 +130,7 @@ export function Assistant() {
         </button>
       )}
       {open && (
-        <div role="dialog" aria-label="Glaze, assistente virtuale" onKeyDown={onKey} data-testid="assistant-panel"
+        <div role="dialog" aria-label="Glaze, assistente virtuale" data-testid="assistant-panel"
           className="fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 w-full sm:w-[380px] h-[80vh] sm:h-[560px] max-h-[100vh] bg-[#F8F6F2] border border-[#D6D3D1] shadow-2xl flex flex-col">
           <div className="flex items-center justify-between bg-[#1C1917] text-white px-4 py-2.5">
             <span className="font-medium text-sm">Glaze · assistente</span>
