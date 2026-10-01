@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { X, ArrowLeft, Landmark, CreditCard } from "lucide-react";
@@ -19,7 +19,14 @@ export default function Samples() {
   usePageTitle("Campioni");
   const { items, removeSample, clear } = useSamples();
   const [form, setForm] = useState(EMPTY_FORM);
-  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [cardEnabled, setCardEnabled] = useState(false);
+  useEffect(() => {
+    api.get("/payments/config").then(({ data }) => {
+      setCardEnabled(!!data.card_enabled);
+      if (data.card_enabled) setPaymentMethod("card");
+    }).catch(() => {});
+  }, []);
   const [sending, setSending] = useState(false);
   const [okPrivacy, setOkPrivacy] = useState(false);
 
@@ -111,6 +118,7 @@ export default function Samples() {
 
             <div className="pt-2 space-y-2">
               <p className="text-xs text-[#78716C] mb-1">Metodo di pagamento del contributo spese (&euro; {SAMPLE_SHIPPING_FEE.toFixed(2)})</p>
+              {cardEnabled && (
               <label
                 data-testid="sample-payment-card"
                 className={`flex items-center gap-3 border p-3 cursor-pointer transition-colors ${
@@ -121,6 +129,7 @@ export default function Samples() {
                 <CreditCard className="w-4 h-4 text-[#78716C]" />
                 <span className="text-sm font-medium">Carta</span>
               </label>
+              )}
               <label
                 data-testid="sample-payment-bank_transfer"
                 className={`flex items-center gap-3 border p-3 cursor-pointer transition-colors ${

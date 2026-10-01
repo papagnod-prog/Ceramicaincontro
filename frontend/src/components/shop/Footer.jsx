@@ -57,7 +57,7 @@ export const Footer = () => (
         <p>
           © {new Date().getFullYear()} {COMPANY.name} — Sede legale: {COMPANY.address} — P.IVA {COMPANY.vat} — REA {COMPANY.rea} — Capitale sociale € {COMPANY.capital}
         </p>
-        <p>Prezzi IVA esclusa ove indicato · Pagamento tramite bonifico bancario</p>
+        <p>Prezzi IVA esclusa ove indicato · Pagamento con carta (Stripe) o bonifico bancario</p>
         <nav aria-label="Sito aziendale" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-[#E7E5E4]">
           <a href="https://ceramicaincontro.it" className="hover:text-white underline">Sito aziendale</a>
           <a href={`mailto:${COMPANY.email}`} className="hover:text-white underline">Serve aiuto? {COMPANY.email} · {COMPANY.phone} · Lun-Ven 9-13 / 15-18</a>

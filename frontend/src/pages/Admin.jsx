@@ -644,7 +644,7 @@ export default function Admin() {
                 <label className="text-xs text-[#78716C] block mb-1">BIC/SWIFT</label>
                 <input className={inputCls} value={paymentSettings.bank_transfer_bic} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_bic: e.target.value }))} data-testid="admin-payment-bic" />
               </div>
-              <div className="sm:col-span-3 text-sm font-medium text-[#57534E] mt-3 -mb-1">Stripe (chiavi salvate, non ancora attivo in checkout)</div>
+              <div className="sm:col-span-3 text-sm font-medium text-[#57534E] mt-3 -mb-1">Stripe (informativo: la chiave attiva è la variabile STRIPE_SECRET_KEY sul server)</div>
               <div>
                 <label className="text-xs text-[#78716C] block mb-1">Publishable key</label>
                 <input className={inputCls} value={paymentSettings.stripe_publishable_key} onChange={(e) => setPaymentSettings((p) => ({ ...p, stripe_publishable_key: e.target.value }))} data-testid="admin-stripe-publishable" />
@@ -666,7 +666,7 @@ export default function Admin() {
                 <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors">Salva impostazioni di pagamento</button>
               </div>
             </form>
-            <p className="text-xs text-[#78716C] mt-2">Le chiavi Stripe e PayPal vengono salvate ma il checkout accetta solo bonifico bancario per ora.</p>
+            <p className="text-xs text-[#78716C] mt-2">Il pagamento con carta si attiva impostando STRIPE_SECRET_KEY e STRIPE_WEBHOOK_SECRET sul server (Render). PayPal non è attivo.</p>
           </section>
 
           {/* Rates matrix */}

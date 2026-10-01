@@ -34,7 +34,12 @@ db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
+# Stripe: la chiave arriva SOLO dalle variabili d'ambiente (mai da codice o DB).
+# Senza chiave valida il pagamento con carta resta disattivato e il checkout
+# offre solo il bonifico.
+_STRIPE_KEY = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+STRIPE_ENABLED = _STRIPE_KEY.startswith(("sk_test_", "sk_live_", "rk_test_", "rk_live_")) and "emergent" not in _STRIPE_KEY
+stripe.api_key = _STRIPE_KEY if STRIPE_ENABLED else None
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 
@@ -52,6 +57,18 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
 # The React SPA is served under the /store path (see frontend basename), so any link
 # sent by email must point there, not at the bare domain root.
 STORE_URL = FRONTEND_URL.rstrip("/") + "/store"
+
+
+def _safe_origin(url: str) -> str:
+    """Evita redirect aperti: success/cancel URL di Stripe devono restare sul nostro store."""
+    url = (url or "").rstrip("/")
+    allowed = (STORE_URL, "http://localhost:3000/store", "http://localhost:3000")
+    return url if url in allowed else STORE_URL
+
+
+def _require_card_enabled():
+    if not STRIPE_ENABLED:
+        raise HTTPException(400, "Il pagamento con carta non è al momento disponibile. Scegli il bonifico bancario.")
 
 ORDER_STATUS_LABEL_IT = {
     "pending": "In attesa", "processing": "In lavorazione", "shipped": "Spedito",
@@ -462,8 +479,7 @@ def compute_vat(subtotal: float, shipping_cost: float, vat_rate_products: float,
 
 # ---------------------------------------------------------------------------
 # Payment settings (IBAN bonifico + chiavi Stripe/PayPal) — admin-editable, stored in DB.
-# Stripe/PayPal keys are stored for future use; they are not yet wired into the
-# checkout flow (Stripe Checkout still uses STRIPE_SECRET_KEY from the environment).
+# Le chiavi Stripe/PayPal salvate qui NON sono usate: Stripe legge STRIPE_SECRET_KEY dall'ambiente.
 # ---------------------------------------------------------------------------
 PAYMENT_SETTINGS_ID = "payment_settings"
 
@@ -1162,8 +1178,8 @@ async def create_checkout(data: CheckoutInput, request: Request):
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
 
     if payment_method == "card":
-        # Reserved for when a real Stripe key is configured. Falls through to
-        # Stripe Checkout as before.
+        _require_card_enabled()
+        origin_url = _safe_origin(data.origin_url)
         stripe_lines = []
         for ln in lines:
             stripe_lines.append({
@@ -1190,8 +1206,11 @@ async def create_checkout(data: CheckoutInput, request: Request):
             line_items=stripe_lines,
             mode="payment",
             customer_email=data.customer.email,
-            success_url=f"{data.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{data.origin_url}/payment/cancel",
+            locale="it",
+            payment_intent_data={"description": f"Ordine {order_number} — Ceramica Incontro",
+                                 "metadata": {"order_number": order_number}},
+            success_url=f"{origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{origin_url}/payment/cancel",
             metadata={"order_id": order_id, "order_number": order_number})
 
         order = {**base_order, "status": "pending", "payment_status": "pending",
@@ -1219,7 +1238,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
                          f"Ordine confermato {order_number} — Ceramica Incontro",
                          await _order_email_html(order))
 
-    return {"checkout_url": f"{data.origin_url}/payment/confirmation?order={order_number}&method={payment_method}",
+    return {"checkout_url": f"{_safe_origin(data.origin_url)}/payment/confirmation?order={order_number}&method={payment_method}",
             "session_id": None, "order_number": order_number, "payment_method": payment_method}
 
 
@@ -1264,6 +1283,11 @@ async def _mark_paid(session_id: str, payment_intent=None):
                              await _order_email_html(order))
 
 
+@api_router.get("/payments/config")
+async def payments_config():
+    return {"card_enabled": STRIPE_ENABLED, "bank_transfer_enabled": True}
+
+
 @api_router.get("/payments/status/{session_id}")
 async def payment_status(session_id: str):
     record = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
@@ -1275,7 +1299,7 @@ async def payment_status(session_id: str):
             if s.payment_status == "paid" or s.status == "complete":
                 await _mark_paid(session_id, s.payment_intent)
                 record = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
-        except stripe.error.StripeError:
+        except stripe.StripeError:
             pass
     order = await db.orders.find_one({"session_id": session_id}, {"_id": 0})
     sample = await db.sample_requests.find_one({"session_id": session_id}, {"_id": 0})
@@ -1411,7 +1435,7 @@ async def request_samples(data: SampleRequestInput, request: Request):
         raise HTTPException(400, f"Puoi richiedere al massimo {MAX_SAMPLE_ITEMS} campioni")
 
     payment_method = data.payment_method if data.payment_method in ("card", "bank_transfer") else "card"
-    origin_url = data.origin_url or FRONTEND_URL
+    origin_url = _safe_origin(data.origin_url)
 
     user = await resolve_user(request)
     req_id = str(uuid.uuid4())
@@ -1428,7 +1452,9 @@ async def request_samples(data: SampleRequestInput, request: Request):
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()}
 
     if payment_method == "card":
+        _require_card_enabled()
         session = stripe.checkout.Session.create(
+            locale="it",
             line_items=[{
                 "price_data": {"currency": "eur",
                                "product_data": {"name": "Spedizione campioni (forfait) — Ceramica Incontro"},

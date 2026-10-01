@@ -4,7 +4,7 @@ import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { ShieldCheck, Truck, Mail } from "lucide-react";
+import { ShieldCheck, Truck, Mail, CreditCard } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { ConsentCheckbox } from "@/components/shop/ConsentCheckbox";
 import { Link } from "react-router-dom";
@@ -19,6 +19,10 @@ export default function Checkout() {
   const [regions, setRegions] = useState([]);
   const [shipId, setShipId] = useState("standard");
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [cardEnabled, setCardEnabled] = useState(false);
+  useEffect(() => {
+    api.get("/payments/config").then(({ data }) => setCardEnabled(!!data.card_enabled)).catch(() => {});
+  }, []);
   const [unloadingLabel, setUnloadingLabel] = useState("Consegna a piano strada");
   const [unloadingPrice, setUnloadingPrice] = useState(0);
   const [customerType, setCustomerType] = useState("privato"); // "privato" | "azienda"
@@ -254,6 +258,20 @@ export default function Checkout() {
           <section>
             <h2 className="eyebrow mb-4 text-[#C05A3E]">5 · Metodo di pagamento</h2>
             <div className="space-y-3">
+              {cardEnabled && (
+                <label
+                  data-testid="payment-method-card"
+                  className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${
+                    paymentMethod === "card" ? "border-[#C05A3E] bg-[#FBF3EF]" : "border-[#E2DDD5] bg-white hover:border-[#C0B9AE]"
+                  }`}
+                >
+                  <input type="radio" name="payment" checked={paymentMethod === "card"} onChange={() => setPaymentMethod("card")} className="mt-1 accent-[#C05A3E]" />
+                  <div className="flex-1">
+                    <span className="font-medium text-sm flex items-center gap-2"><CreditCard className="w-4 h-4" aria-hidden="true" /> Carta di credito / debito</span>
+                    <p className="text-xs text-[#78716C] mt-0.5">Pagamento sicuro su Stripe (carte, Apple Pay, Google Pay). I dati della carta non transitano dal nostro sito.</p>
+                  </div>
+                </label>
+              )}
               <label
                 data-testid="payment-method-bank_transfer"
                 className={`flex items-start gap-4 border p-4 cursor-pointer transition-colors ${

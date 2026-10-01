@@ -47,9 +47,9 @@ export const Privacy = () => (
     <h2>3. Prova di accettazione</h2>
     <p>Quando accetti le condizioni o confermi di aver letto questa informativa, registriamo data e ora, versione dei testi e una versione abbreviata dell'indirizzo IP, a prova dell'accettazione.</p>
     <h2>4. Destinatari</h2>
-    <p>I dati sono trattati da personale autorizzato e da fornitori nominati responsabili del trattamento: hosting e infrastruttura del sito <Todo>fornitore hosting</Todo>, database <Todo>fornitore database/regione</Todo>, invio email transazionali <Todo>fornitore SMTP</Todo>, corrieri per la consegna <Todo>corriere</Todo>, istituto di credito per il bonifico, consulenti fiscali e amministrativi.</p>
+    <p>I dati sono trattati da personale autorizzato e da fornitori nominati responsabili del trattamento: hosting del sito Aruba S.p.A. e infrastruttura dello store <Todo>fornitore hosting API (Render) e regione</Todo>, database <Todo>fornitore database/regione</Todo>, invio email transazionali <Todo>fornitore SMTP</Todo>, corrieri per la consegna (GLS, Bartolini/BRT, Fercam), Stripe Payments Europe Ltd. per i pagamenti con carta, istituto di credito per il bonifico, consulenti fiscali e amministrativi.</p>
     <h2>5. Trasferimenti extra UE</h2>
-    <p>Dove un fornitore tratti dati fuori dallo Spazio Economico Europeo, il trasferimento avviene con le garanzie previste dagli artt. 44-49 GDPR (decisione di adeguatezza o clausole contrattuali standard) <Todo>verifica per ciascun fornitore</Todo>.</p>
+    <p>Dove un fornitore tratti dati fuori dallo Spazio Economico Europeo, il trasferimento avviene con le garanzie previste dagli artt. 44-49 GDPR (decisione di adeguatezza, EU-US Data Privacy Framework o clausole contrattuali standard). Stripe può trattare dati anche fuori dallo SEE con tali garanzie <Todo>verifica per ciascun fornitore</Todo>.</p>
     <h2>6. Cookie e strumenti di tracciamento</h2>
     <p>Questo negozio usa solo memorizzazione tecnica nel browser (carrello, richiesta campioni, sessione di accesso), non soggetta a consenso. Non utilizza strumenti di analisi né pubblicità. Dettagli nella <Link to="/cookie">Cookie policy</Link>.</p>
     <h2>7. I tuoi diritti</h2>
@@ -80,7 +80,7 @@ export const Cookie = () => (
     <h2>Analisi e pubblicità</h2>
     <p>Nel negozio non sono presenti cookie analitici, di profilazione o di terze parti. Se verranno introdotti, mostreremo un banner e attiveremo gli strumenti solo dopo il tuo consenso.</p>
     <h2>Pagamenti</h2>
-    <p>Il pagamento avviene tramite bonifico bancario: nessun dato di carta transita dal negozio.</p>
+    <p>Puoi pagare con bonifico bancario oppure con carta tramite Stripe. Con la carta vieni portato sulla pagina di pagamento di Stripe, che raccoglie direttamente i dati della carta: nessun dato di carta transita né viene salvato dal nostro negozio. Stripe, sulla propria pagina, può usare cookie tecnici e antifrode secondo la <a href="https://stripe.com/it/privacy" className="underline" target="_blank" rel="noopener noreferrer">propria informativa</a>. Il nostro negozio non imposta cookie.</p>
     <h2>Come cancellare i dati</h2>
     <p>Puoi eliminare la memorizzazione dalle impostazioni del tuo browser. Informativa completa: <Link to="/privacy">Privacy</Link>.</p>
   </Shell>
@@ -97,7 +97,7 @@ export const Terms = () => (
     <h2>4. Conclusione del contratto e obbligo di pagamento</h2>
     <p>Cliccando su <strong>«Ordine con obbligo di pagamento»</strong> il cliente invia una proposta d'acquisto. Il contratto si conclude con la nostra conferma dell'ordine via email. Al cliente è richiesto il pagamento secondo il metodo scelto.</p>
     <h2>5. Pagamento</h2>
-    <p>Il pagamento avviene tramite <strong>bonifico bancario</strong> secondo le coordinate indicate nell'email di conferma, con il numero d'ordine come causale. L'ordine viene preparato alla ricezione del pagamento. <Todo>termine entro cui effettuare il bonifico e altri metodi di pagamento eventualmente attivi</Todo></p>
+    <p>Puoi pagare con <strong>carta</strong> (tramite Stripe, pagamento immediato) oppure con <strong>bonifico bancario</strong> secondo le coordinate indicate nell'email di conferma, con il numero d'ordine come causale. Con la carta l'ordine è confermato a pagamento riuscito; con il bonifico l'ordine viene preparato alla ricezione dell'accredito. I prezzi sono in euro. <Todo>termine entro cui effettuare il bonifico</Todo></p>
     <h2>6. Spedizione e consegna</h2>
     <p>La spedizione è effettuata in Italia con corriere <Todo>corriere e tempi di consegna</Todo>. Le spese dipendono da peso, destinazione e opzione scelta e sono indicate prima dell'ordine. L'opzione «Consegna a piano strada» prevede la consegna al piano strada (non al piano). Alla consegna il cliente deve verificare imballo e quantità e segnalare al corriere eventuali danni (riserva scritta sul documento di consegna), informandoci entro 8 giorni.</p>
     <h2>7. Diritto di recesso (consumatori)</h2>
