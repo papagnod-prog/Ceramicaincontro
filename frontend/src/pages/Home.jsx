@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api, { eur } from "@/lib/api";
+import api from "@/lib/api";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { ArrowRight } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -9,9 +9,7 @@ const HERO = "/store/img/hero.jpg";
 
 const COLLECTION_TILES = [
   { name: "SMUSSO", tag: "Il battiscopa a 30°", img: "/store/img/smusso.jpg" },
-  { name: "Moon Spots", tag: "Rivestimento 9x60", img: "/store/img/moon-spots.jpg" },
-  { name: "Stony", tag: "Effetto pietra", img: "/store/img/stony.jpg" },
-  { name: "Paper Glass", tag: "Riflessi di vetro", img: "/store/img/paper-glass.jpg" },
+  { name: "Battiscopa", tag: "Profili 8x33 cm", img: "/store/img/battiscopa.jpg" },
 ];
 
 export default function Home() {
@@ -58,19 +56,20 @@ export default function Home() {
           </div>
           <Link to="/prodotti" className="hidden sm:inline text-sm font-medium ci-link-underline">Vedi tutto</Link>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div data-testid="collection-tiles" className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
           {COLLECTION_TILES.map((c, i) => (
             <Link
               key={c.name}
               to={`/prodotti?collection=${encodeURIComponent(c.name)}`}
-              className="group relative aspect-[3/4] overflow-hidden ci-fade-up"
+              data-testid="collection-tile"
+              className="group relative aspect-[4/3] sm:aspect-[4/5] lg:aspect-[5/4] overflow-hidden ci-fade-up"
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              <img src={c.img} alt={c.name} className="ci-hover-img w-full h-full object-cover" />
+              <img src={c.img} alt="" loading="lazy" className="ci-hover-img w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <div className="absolute bottom-0 left-0 p-5">
+              <div className="absolute bottom-0 left-0 p-5 lg:p-8">
                 <p className="text-white/80 text-xs uppercase tracking-widest">{c.tag}</p>
-                <h3 className="font-serif-display text-white text-2xl">{c.name}</h3>
+                <h3 className="font-serif-display text-white text-2xl lg:text-3xl">{c.name}</h3>
               </div>
             </Link>
           ))}

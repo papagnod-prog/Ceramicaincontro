@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { STORE_COLLECTIONS } from "@/lib/collections";
 import { Link, useNavigate } from "react-router-dom";
 import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText, Truck,
+  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText, Truck, Search,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -42,6 +43,9 @@ export default function Admin() {
   const [stats, setStats] = useState(null);
   const [aiUse, setAiUse] = useState(null);
   const [products, setProducts] = useState([]);
+  const [productsStatus, setProductsStatus] = useState("loading"); // loading | ready | error
+  const [productSearch, setProductSearch] = useState("");
+  const [productCollection, setProductCollection] = useState("all");
   const [orders, setOrders] = useState([]);
   const [samples, setSamples] = useState([]);
   const [quotes, setQuotes] = useState([]);
@@ -76,7 +80,9 @@ export default function Admin() {
   const loadAll = () => {
     api.get("/admin/assistant/usage").then(({ data }) => setAiUse(data)).catch(() => {});
     api.get("/admin/stats").then(({ data }) => setStats(data)).catch(() => {});
-    api.get("/products").then(({ data }) => setProducts(data));
+    api.get("/products")
+      .then(({ data }) => { setProducts(data); setProductsStatus("ready"); })
+      .catch(() => setProductsStatus("error"));
     api.get("/admin/orders").then(({ data }) => setOrders(data)).catch(() => {});
     api.get("/admin/samples").then(({ data }) => setSamples(data)).catch(() => {});
     api.get("/admin/quotes").then(({ data }) => setQuotes(data)).catch(() => {});
@@ -94,6 +100,18 @@ export default function Admin() {
   useEffect(() => {
     if (user?.role === "admin") { loadAll(); loadShipping(); }
   }, [user]);
+
+  // Ricerca per nome/codice e filtro collezione, combinabili.
+  const filteredProducts = useMemo(() => {
+    const terms = productSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return products.filter((p) => {
+      if (productCollection !== "all" && p.collection !== productCollection) return false;
+      if (!terms.length) return true;
+      const hay = `${p.name || ""} ${p.id || ""}`.toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    });
+  }, [products, productSearch, productCollection]);
+  const productFiltersActive = productSearch.trim() !== "" || productCollection !== "all";
 
   if (loading || !user || user.role !== "admin")
     return <div className="max-w-6xl mx-auto px-4 py-24 text-[#78716C]">Caricamento…</div>;
@@ -343,8 +361,53 @@ export default function Admin() {
       {/* Products */}
       {tab === "products" && (
         <div>
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-4" data-testid="admin-product-filters">
+            <div className="flex-1 sm:max-w-sm">
+              <label htmlFor="admin-product-search" className="block text-xs font-medium text-[#57534E] mb-1.5">Cerca prodotto</label>
+              <div className="relative flex items-center">
+                <Search aria-hidden="true" className="w-4 h-4 absolute left-3 text-[#78716C]" />
+                <input
+                  id="admin-product-search"
+                  aria-label="Cerca prodotto per nome o codice"
+                  data-testid="admin-product-search"
+                  type="search"
+                  autoComplete="off"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Nome o codice, es. 60SP009"
+                  className="w-full h-10 pl-9 pr-3 bg-white border border-[#E2DDD5] text-sm focus:outline-none focus:border-[#C05A3E]"
+                />
+              </div>
+            </div>
+            <div className="sm:w-48">
+              <label htmlFor="admin-product-collection" className="block text-xs font-medium text-[#57534E] mb-1.5">Collezione</label>
+              <Select value={productCollection} onValueChange={setProductCollection}>
+                <SelectTrigger id="admin-product-collection" data-testid="admin-product-collection" aria-label="Filtra per collezione" className="bg-white border-[#E2DDD5] rounded-none h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">Tutte</SelectItem>
+                  {STORE_COLLECTIONS.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {productFiltersActive && (
+              <button
+                type="button"
+                data-testid="admin-product-filters-reset"
+                onClick={() => { setProductSearch(""); setProductCollection("all"); }}
+                className="h-10 px-3 text-sm text-[#C05A3E] hover:text-[#A64B32] ci-link-underline self-start sm:self-end"
+              >
+                Azzera filtri
+              </button>
+            )}
+          </div>
           <div className="flex justify-between items-center mb-5">
-            <p className="text-sm text-[#78716C]">{products.length} prodotti</p>
+            <p className="text-sm text-[#78716C]" data-testid="admin-product-count" aria-live="polite">
+              {productFiltersActive ? `${filteredProducts.length} di ${products.length} prodotti` : `${products.length} prodotti`}
+            </p>
             <button onClick={openNew} data-testid="admin-add-product-btn"
               className="inline-flex items-center gap-2 bg-[#C05A3E] text-white px-4 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors">
               <Plus className="w-4 h-4" /> Nuovo prodotto
@@ -358,11 +421,25 @@ export default function Admin() {
                   <th className="px-4 py-3 font-medium">Collezione</th>
                   <th className="px-4 py-3 font-medium">Prezzo</th>
                   <th className="px-4 py-3 font-medium">Stock</th>
-                  <th className="px-4 py-3"></th>
+                  <th className="px-4 py-3"><span className="sr-only">Azioni</span></th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => (
+                {productsStatus === "loading" && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-[#78716C]">Caricamento prodotti…</td></tr>
+                )}
+                {productsStatus === "error" && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-[#57534E]">
+                    Impossibile caricare i prodotti.{" "}
+                    <button onClick={loadAll} className="text-[#C05A3E] font-medium ci-link-underline">Riprova</button>
+                  </td></tr>
+                )}
+                {productsStatus === "ready" && filteredProducts.length === 0 && (
+                  <tr><td colSpan={5} data-testid="admin-product-empty" className="px-4 py-8 text-center text-[#78716C]">
+                    Nessun prodotto corrisponde ai filtri.
+                  </td></tr>
+                )}
+                {filteredProducts.map((p) => (
                   <tr key={p.id} className="border-t border-[#E2DDD5]">
                     <td className="px-4 py-3 font-medium">{p.name}</td>
                     <td className="px-4 py-3 text-[#78716C]">{p.collection}</td>
@@ -400,7 +477,10 @@ export default function Admin() {
                   key={o.id}
                   data-testid={`order-row-${o.id}`}
                   className="border-t border-[#E2DDD5] cursor-pointer hover:bg-[#F8F6F2]"
-                  onClick={() => navigate(`/admin/ordini/${o.id}`)}
+                  onClick={(e) => {
+                    if (e.target.closest?.("input, button, select, [role=option], [role=listbox], [role=combobox]")) return;
+                    navigate(`/admin/ordini/${o.id}`);
+                  }}
                 >
                   <td className="px-4 py-3">
                     <div className="font-medium">{o.order_number}</div>
@@ -420,16 +500,16 @@ export default function Admin() {
                       }[o.payment_status] || o.payment_status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 min-w-[160px]" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-4 py-3 min-w-[160px]">
                     <Select value={o.status} onValueChange={(v) => updateOrderStatus(o, v)}>
-                      <SelectTrigger data-testid={`order-status-${o.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger aria-label="Stato ordine" data-testid={`order-status-${o.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white">
                         {STATUS_OPTS.map((s) => (<SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <input
+                  <td className="px-4 py-3">
+                    <input aria-label="Cod. tracking"
                       defaultValue={o.tracking}
                       placeholder="Cod. tracking"
                       onBlur={(e) => { if (e.target.value !== o.tracking) updateTracking(o, e.target.value); }}
@@ -478,14 +558,14 @@ export default function Admin() {
                   </td>
                   <td className="px-4 py-3 min-w-[160px]">
                     <Select value={s.status} onValueChange={(v) => updateSampleStatus(s, v)}>
-                      <SelectTrigger data-testid={`sample-status-${s.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger aria-label="Stato campione" data-testid={`sample-status-${s.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white">
                         {SAMPLE_STATUS_OPTS.map((st) => (<SelectItem key={st} value={st}>{SAMPLE_STATUS_LABEL[st]}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </td>
                   <td className="px-4 py-3">
-                    <input
+                    <input aria-label="Cod. tracking"
                       defaultValue={s.tracking}
                       placeholder="Cod. tracking"
                       onBlur={(e) => { if (e.target.value !== s.tracking) updateSampleTracking(s, e.target.value); }}
@@ -530,14 +610,14 @@ export default function Admin() {
                   <td className="px-4 py-3 text-[#78716C]">{q.sqm ? `${q.sqm} m²` : "-"}</td>
                   <td className="px-4 py-3 min-w-[170px]">
                     <Select value={q.status} onValueChange={(v) => updateQuoteStatus(q, v)}>
-                      <SelectTrigger data-testid={`quote-status-${q.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger aria-label="Stato preventivo" data-testid={`quote-status-${q.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white">
                         {QUOTE_STATUS_OPTS.map((st) => (<SelectItem key={st} value={st}>{QUOTE_STATUS_LABEL[st]}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </td>
                   <td className="px-4 py-3">
-                    <input
+                    <input aria-label="Importo preventivo"
                       type="number"
                       step="0.01"
                       defaultValue={q.quoted_amount ?? ""}
@@ -574,7 +654,7 @@ export default function Admin() {
                     <th className="px-4 py-3 font-medium">Min kg</th>
                     <th className="px-4 py-3 font-medium">Max kg</th>
                     <th className="px-4 py-3 font-medium">Ordine</th>
-                    <th className="px-4 py-3"></th>
+                    <th className="px-4 py-3"><span className="sr-only">Azioni</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -601,15 +681,15 @@ export default function Admin() {
             <h3 className="font-serif-display text-2xl mb-4">Aliquote IVA</h3>
             <form onSubmit={saveVat} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-[1fr_1fr_auto] gap-3 items-end" data-testid="admin-vat-form">
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">IVA prodotti (%)</label>
-                <input type="number" step="0.01" min="0" max="100" className={inputCls}
+                <label htmlFor="admin-iva-prodotti" className="text-xs text-[#78716C] block mb-1">IVA prodotti (%)</label>
+                <input id="admin-iva-prodotti" aria-label="IVA prodotti (%)" type="number" step="0.01" min="0" max="100" className={inputCls}
                   value={vatRates.vat_rate_products}
                   onChange={(e) => setVatRates((v) => ({ ...v, vat_rate_products: e.target.value }))}
                   data-testid="admin-vat-products" />
               </div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">IVA trasporto (%)</label>
-                <input type="number" step="0.01" min="0" max="100" className={inputCls}
+                <label htmlFor="admin-iva-trasporto" className="text-xs text-[#78716C] block mb-1">IVA trasporto (%)</label>
+                <input id="admin-iva-trasporto" aria-label="IVA trasporto (%)" type="number" step="0.01" min="0" max="100" className={inputCls}
                   value={vatRates.vat_rate_shipping}
                   onChange={(e) => setVatRates((v) => ({ ...v, vat_rate_shipping: e.target.value }))}
                   data-testid="admin-vat-shipping" />
@@ -624,8 +704,8 @@ export default function Admin() {
             <h3 className="font-serif-display text-2xl mb-4">Consegna a piano strada (sponda idraulica + trans pallet)</h3>
             <form onSubmit={saveUnloading} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-[1fr_auto] gap-3 items-end" data-testid="admin-unloading-form">
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Etichetta</label>
-                <input className={inputCls} value={unloading.label} onChange={(e) => setUnloading((u) => ({ ...u, label: e.target.value }))} />
+                <label htmlFor="admin-etichetta" className="text-xs text-[#78716C] block mb-1">Etichetta</label>
+                <input id="admin-etichetta" aria-label="Etichetta" className={inputCls} value={unloading.label} onChange={(e) => setUnloading((u) => ({ ...u, label: e.target.value }))} />
               </div>
               <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors h-fit">Salva</button>
             </form>
@@ -638,34 +718,34 @@ export default function Admin() {
             <form onSubmit={savePaymentSettings} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-3 gap-3 items-end" data-testid="admin-payment-settings-form">
               <div className="sm:col-span-3 text-sm font-medium text-[#57534E] -mb-1">Bonifico bancario</div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">IBAN</label>
-                <input className={inputCls} value={paymentSettings.bank_transfer_iban} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_iban: e.target.value }))} data-testid="admin-payment-iban" />
+                <label htmlFor="admin-iban" className="text-xs text-[#78716C] block mb-1">IBAN</label>
+                <input id="admin-iban" aria-label="IBAN" className={inputCls} value={paymentSettings.bank_transfer_iban} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_iban: e.target.value }))} data-testid="admin-payment-iban" />
               </div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Titolare conto</label>
-                <input className={inputCls} value={paymentSettings.bank_transfer_holder} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_holder: e.target.value }))} data-testid="admin-payment-holder" />
+                <label htmlFor="admin-titolare-conto" className="text-xs text-[#78716C] block mb-1">Titolare conto</label>
+                <input id="admin-titolare-conto" aria-label="Titolare conto" className={inputCls} value={paymentSettings.bank_transfer_holder} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_holder: e.target.value }))} data-testid="admin-payment-holder" />
               </div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">BIC/SWIFT</label>
-                <input className={inputCls} value={paymentSettings.bank_transfer_bic} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_bic: e.target.value }))} data-testid="admin-payment-bic" />
+                <label htmlFor="admin-bic-swift" className="text-xs text-[#78716C] block mb-1">BIC/SWIFT</label>
+                <input id="admin-bic-swift" aria-label="BIC/SWIFT" className={inputCls} value={paymentSettings.bank_transfer_bic} onChange={(e) => setPaymentSettings((p) => ({ ...p, bank_transfer_bic: e.target.value }))} data-testid="admin-payment-bic" />
               </div>
               <div className="sm:col-span-3 text-sm font-medium text-[#57534E] mt-3 -mb-1">Stripe (informativo: la chiave attiva è la variabile STRIPE_SECRET_KEY sul server)</div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Publishable key</label>
-                <input className={inputCls} value={paymentSettings.stripe_publishable_key} onChange={(e) => setPaymentSettings((p) => ({ ...p, stripe_publishable_key: e.target.value }))} data-testid="admin-stripe-publishable" />
+                <label htmlFor="admin-publishable-key" className="text-xs text-[#78716C] block mb-1">Publishable key</label>
+                <input id="admin-publishable-key" aria-label="Publishable key" className={inputCls} value={paymentSettings.stripe_publishable_key} onChange={(e) => setPaymentSettings((p) => ({ ...p, stripe_publishable_key: e.target.value }))} data-testid="admin-stripe-publishable" />
               </div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Secret key</label>
-                <input type="password" className={inputCls} value={paymentSettings.stripe_secret_key} onChange={(e) => setPaymentSettings((p) => ({ ...p, stripe_secret_key: e.target.value }))} data-testid="admin-stripe-secret" />
+                <label htmlFor="admin-secret-key" className="text-xs text-[#78716C] block mb-1">Secret key</label>
+                <input id="admin-secret-key" aria-label="Secret key" type="password" className={inputCls} value={paymentSettings.stripe_secret_key} onChange={(e) => setPaymentSettings((p) => ({ ...p, stripe_secret_key: e.target.value }))} data-testid="admin-stripe-secret" />
               </div>
               <div className="sm:col-span-3 text-sm font-medium text-[#57534E] mt-3 -mb-1">PayPal (chiavi salvate, non ancora attivo in checkout)</div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Client ID</label>
-                <input className={inputCls} value={paymentSettings.paypal_client_id} onChange={(e) => setPaymentSettings((p) => ({ ...p, paypal_client_id: e.target.value }))} data-testid="admin-paypal-client-id" />
+                <label htmlFor="admin-client-id" className="text-xs text-[#78716C] block mb-1">Client ID</label>
+                <input id="admin-client-id" aria-label="Client ID" className={inputCls} value={paymentSettings.paypal_client_id} onChange={(e) => setPaymentSettings((p) => ({ ...p, paypal_client_id: e.target.value }))} data-testid="admin-paypal-client-id" />
               </div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Secret</label>
-                <input type="password" className={inputCls} value={paymentSettings.paypal_secret} onChange={(e) => setPaymentSettings((p) => ({ ...p, paypal_secret: e.target.value }))} data-testid="admin-paypal-secret" />
+                <label htmlFor="admin-secret" className="text-xs text-[#78716C] block mb-1">Secret</label>
+                <input id="admin-secret" aria-label="Secret" type="password" className={inputCls} value={paymentSettings.paypal_secret} onChange={(e) => setPaymentSettings((p) => ({ ...p, paypal_secret: e.target.value }))} data-testid="admin-paypal-secret" />
               </div>
               <div className="sm:col-span-3">
                 <button type="submit" className="bg-[#C05A3E] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors">Salva impostazioni di pagamento</button>
@@ -679,15 +759,16 @@ export default function Admin() {
             <h3 className="font-serif-display text-2xl mb-4">Tariffe per regione, peso e categoria</h3>
             <form onSubmit={saveRate} className="bg-white border border-[#E2DDD5] p-5 grid sm:grid-cols-5 gap-3 items-end mb-5" data-testid="admin-rate-form">
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Metodo</label>
-                <select className={inputCls} value={rateForm.shipping_option_id} onChange={(e) => setRateForm((f) => ({ ...f, shipping_option_id: e.target.value }))}>
+                <label htmlFor="admin-metodo" className="text-xs text-[#78716C] block mb-1">Metodo</label>
+                <select id="admin-metodo" aria-label="Metodo" className={inputCls} value={rateForm.shipping_option_id} onChange={(e) => setRateForm((f) => ({ ...f, shipping_option_id: e.target.value }))}>
                   <option value="">Seleziona…</option>
                   {shippingMethods.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
                 </select>
               </div>
               <div className="relative">
-                <label className="text-xs text-[#78716C] block mb-1">Regioni</label>
+                <label htmlFor="admin-rate-regions-toggle" className="text-xs text-[#78716C] block mb-1">Regioni</label>
                 <button
+                  id="admin-rate-regions-toggle"
                   type="button"
                   data-testid="admin-rate-regions-toggle"
                   onClick={() => setRegionPickerOpen((o) => !o)}
@@ -710,7 +791,7 @@ export default function Admin() {
                     </div>
                     {regions.map((r) => (
                       <label key={r} className="flex items-center gap-2 px-1 py-1 text-sm hover:bg-[#F1EEE8] cursor-pointer">
-                        <input type="checkbox" checked={rateForm.regions.includes(r)} onChange={() => toggleRateRegion(r)} className="accent-[#C05A3E]" />
+                        <input type="checkbox" aria-label={r} checked={rateForm.regions.includes(r)} onChange={() => toggleRateRegion(r)} className="accent-[#C05A3E]" />
                         {r}
                       </label>
                     ))}
@@ -718,8 +799,9 @@ export default function Admin() {
                 )}
               </div>
               <div className="relative">
-                <label className="text-xs text-[#78716C] block mb-1">Categorie</label>
+                <label htmlFor="admin-rate-categories-toggle" className="text-xs text-[#78716C] block mb-1">Categorie</label>
                 <button
+                  id="admin-rate-categories-toggle"
                   type="button"
                   data-testid="admin-rate-categories-toggle"
                   onClick={() => setCategoryPickerOpen((o) => !o)}
@@ -742,7 +824,7 @@ export default function Admin() {
                     </div>
                     {collectionsList.map((c) => (
                       <label key={c} className="flex items-center gap-2 px-1 py-1 text-sm hover:bg-[#F1EEE8] cursor-pointer">
-                        <input type="checkbox" checked={rateForm.categories.includes(c)} onChange={() => toggleRateCategory(c)} className="accent-[#C05A3E]" />
+                        <input type="checkbox" aria-label={c} checked={rateForm.categories.includes(c)} onChange={() => toggleRateCategory(c)} className="accent-[#C05A3E]" />
                         {c}
                       </label>
                     ))}
@@ -750,16 +832,16 @@ export default function Admin() {
                 )}
               </div>
               <div>
-                <label className="text-xs text-[#78716C] block mb-1">Fascia di peso</label>
-                <select className={inputCls} value={rateForm.weight_bracket_id} onChange={(e) => setRateForm((f) => ({ ...f, weight_bracket_id: e.target.value }))}>
+                <label htmlFor="admin-fascia-di-peso" className="text-xs text-[#78716C] block mb-1">Fascia di peso</label>
+                <select id="admin-fascia-di-peso" aria-label="Fascia di peso" className={inputCls} value={rateForm.weight_bracket_id} onChange={(e) => setRateForm((f) => ({ ...f, weight_bracket_id: e.target.value }))}>
                   <option value="">Seleziona…</option>
                   {brackets.map((b) => (<option key={b.id} value={b.id}>{b.label}</option>))}
                 </select>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-xs text-[#78716C] block mb-1">Prezzo (€)</label>
-                  <input type="number" step="0.01" className={inputCls} value={rateForm.price} onChange={(e) => setRateForm((f) => ({ ...f, price: e.target.value }))} data-testid="admin-rate-price" />
+                  <label htmlFor="admin-prezzo" className="text-xs text-[#78716C] block mb-1">Prezzo (€)</label>
+                  <input id="admin-prezzo" aria-label="Prezzo (€)" type="number" step="0.01" className={inputCls} value={rateForm.price} onChange={(e) => setRateForm((f) => ({ ...f, price: e.target.value }))} data-testid="admin-rate-price" />
                 </div>
                 <button type="submit" data-testid="admin-rate-save" className="bg-[#C05A3E] text-white px-4 py-2.5 text-sm font-medium hover:bg-[#A64B32] transition-colors h-fit self-end">
                   <Plus className="w-4 h-4" />
@@ -791,7 +873,7 @@ export default function Admin() {
                     <th className="px-4 py-3 font-medium">Categoria</th>
                     <th className="px-4 py-3 font-medium">Fascia di peso</th>
                     <th className="px-4 py-3 font-medium">Prezzo</th>
-                    <th className="px-4 py-3"></th>
+                    <th className="px-4 py-3"><span className="sr-only">Azioni</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -817,21 +899,22 @@ export default function Admin() {
 
       {/* Weight bracket editor modal */}
       {editingBracket && (
-        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4" onClick={() => setEditingBracket(null)}>
-          <form onClick={(e) => e.stopPropagation()} onSubmit={saveBracket}
-            className="bg-[#F8F6F2] w-full max-w-md p-6" data-testid="admin-bracket-form">
+        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4">
+          <button type="button" aria-hidden="true" tabIndex={-1} className="absolute inset-0 cursor-default" onClick={() => setEditingBracket(null)} />
+          <form onSubmit={saveBracket}
+            className="relative bg-[#F8F6F2] w-full max-w-md p-6" data-testid="admin-bracket-form">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-serif-display text-2xl">{editingBracket === "new" ? "Nuova fascia di peso" : "Modifica fascia di peso"}</h3>
-              <button type="button" onClick={() => setEditingBracket(null)} className="p-2 hover:bg-[#F1EEE8] rounded-full"><X className="w-5 h-5" /></button>
+              <button type="button" aria-label="Chiudi" onClick={() => setEditingBracket(null)} className="p-2 hover:bg-[#F1EEE8] rounded-full"><X className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <input className={inputCls + " col-span-2"} placeholder="Etichetta (es. 0-20 kg)" required
+              <input aria-label="Etichetta (es. 0-20 kg)" className={inputCls + " col-span-2"} placeholder="Etichetta (es. 0-20 kg)" required
                 value={bracketForm.label} onChange={(e) => setBracketForm((f) => ({ ...f, label: e.target.value }))} />
-              <input className={inputCls} type="number" step="0.01" placeholder="Min kg" required
+              <input aria-label="Min kg" className={inputCls} type="number" step="0.01" placeholder="Min kg" required
                 value={bracketForm.min_kg} onChange={(e) => setBracketForm((f) => ({ ...f, min_kg: e.target.value }))} />
-              <input className={inputCls} type="number" step="0.01" placeholder="Max kg (vuoto = oltre)"
+              <input aria-label="Max kg (vuoto = oltre)" className={inputCls} type="number" step="0.01" placeholder="Max kg (vuoto = oltre)"
                 value={bracketForm.max_kg} onChange={(e) => setBracketForm((f) => ({ ...f, max_kg: e.target.value }))} />
-              <input className={inputCls + " col-span-2"} type="number" placeholder="Ordine"
+              <input aria-label="Ordine" className={inputCls + " col-span-2"} type="number" placeholder="Ordine"
                 value={bracketForm.order} onChange={(e) => setBracketForm((f) => ({ ...f, order: e.target.value }))} />
             </div>
             <button type="submit" className="w-full bg-[#C05A3E] text-white py-3 text-sm font-semibold hover:bg-[#A64B32] transition-colors mt-5">
@@ -843,30 +926,31 @@ export default function Admin() {
 
       {/* Product editor modal */}
       {editing && (
-        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4" onClick={() => setEditing(null)}>
-          <form onClick={(e) => e.stopPropagation()} onSubmit={saveProduct}
-            className="bg-[#F8F6F2] w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" data-testid="admin-product-form">
+        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4">
+          <button type="button" aria-hidden="true" tabIndex={-1} className="absolute inset-0 cursor-default" onClick={() => setEditing(null)} />
+          <form onSubmit={saveProduct}
+            className="relative bg-[#F8F6F2] w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" data-testid="admin-product-form">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-serif-display text-2xl">{editing === "new" ? "Nuovo prodotto" : "Modifica prodotto"}</h3>
-              <button type="button" onClick={() => setEditing(null)} className="p-2 hover:bg-[#F1EEE8] rounded-full"><X className="w-5 h-5" /></button>
+              <button type="button" aria-label="Chiudi" onClick={() => setEditing(null)} className="p-2 hover:bg-[#F1EEE8] rounded-full"><X className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <input className={inputCls + " col-span-2"} placeholder="Nome" required value={form.name} onChange={setF("name")} data-testid="pf-name" />
-              <input className={inputCls} placeholder="Collezione" required value={form.collection} onChange={setF("collection")} data-testid="pf-collection" />
-              <input className={inputCls} placeholder="Formato" value={form.format} onChange={setF("format")} data-testid="pf-format" />
-              <input className={inputCls} placeholder="Finitura" value={form.finish} onChange={setF("finish")} />
-              <input className={inputCls} placeholder="Colore" value={form.color} onChange={setF("color")} />
-              <input className={inputCls} placeholder="Utilizzo" value={form.usage} onChange={setF("usage")} />
-              <input className={inputCls} type="number" step="0.01" placeholder="Prezzo €" required value={form.price} onChange={setF("price")} data-testid="pf-price" />
-              <input className={inputCls} type="number" step="0.01" placeholder="Peso kg" value={form.weight_kg} onChange={setF("weight_kg")} data-testid="pf-weight" />
-              <input className={inputCls} type="number" step="1" placeholder="Pezzi per confezione" value={form.coverage_sqm} onChange={setF("coverage_sqm")} />
-              <input className={inputCls} type="number" placeholder="Stock" value={form.stock} onChange={setF("stock")} />
-              <input className={inputCls + " col-span-2"} placeholder="URL immagine 1 (foto principale)" value={form.image} onChange={setF("image")} data-testid="pf-image" />
-              <input className={inputCls + " col-span-2"} placeholder="URL immagine 2 (opzionale)" value={form.image2} onChange={setF("image2")} data-testid="pf-image2" />
-              <input className={inputCls + " col-span-2"} placeholder="URL immagine 3 (opzionale)" value={form.image3} onChange={setF("image3")} data-testid="pf-image3" />
-              <textarea className={inputCls + " col-span-2"} rows={3} placeholder="Descrizione" value={form.description} onChange={setF("description")} />
+              <input aria-label="Nome" className={inputCls + " col-span-2"} placeholder="Nome" required value={form.name} onChange={setF("name")} data-testid="pf-name" />
+              <input aria-label="Collezione" className={inputCls} placeholder="Collezione" required value={form.collection} onChange={setF("collection")} data-testid="pf-collection" />
+              <input aria-label="Formato" className={inputCls} placeholder="Formato" value={form.format} onChange={setF("format")} data-testid="pf-format" />
+              <input aria-label="Finitura" className={inputCls} placeholder="Finitura" value={form.finish} onChange={setF("finish")} />
+              <input aria-label="Colore" className={inputCls} placeholder="Colore" value={form.color} onChange={setF("color")} />
+              <input aria-label="Utilizzo" className={inputCls} placeholder="Utilizzo" value={form.usage} onChange={setF("usage")} />
+              <input aria-label="Prezzo €" className={inputCls} type="number" step="0.01" placeholder="Prezzo €" required value={form.price} onChange={setF("price")} data-testid="pf-price" />
+              <input aria-label="Peso kg" className={inputCls} type="number" step="0.01" placeholder="Peso kg" value={form.weight_kg} onChange={setF("weight_kg")} data-testid="pf-weight" />
+              <input aria-label="Pezzi per confezione" className={inputCls} type="number" step="1" placeholder="Pezzi per confezione" value={form.coverage_sqm} onChange={setF("coverage_sqm")} />
+              <input aria-label="Stock" className={inputCls} type="number" placeholder="Stock" value={form.stock} onChange={setF("stock")} />
+              <input aria-label="URL immagine 1 (foto principale)" className={inputCls + " col-span-2"} placeholder="URL immagine 1 (foto principale)" value={form.image} onChange={setF("image")} data-testid="pf-image" />
+              <input aria-label="URL immagine 2 (opzionale)" className={inputCls + " col-span-2"} placeholder="URL immagine 2 (opzionale)" value={form.image2} onChange={setF("image2")} data-testid="pf-image2" />
+              <input aria-label="URL immagine 3 (opzionale)" className={inputCls + " col-span-2"} placeholder="URL immagine 3 (opzionale)" value={form.image3} onChange={setF("image3")} data-testid="pf-image3" />
+              <textarea aria-label="Descrizione" className={inputCls + " col-span-2"} rows={3} placeholder="Descrizione" value={form.description} onChange={setF("description")} />
               <label className="col-span-2 flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} className="accent-[#C05A3E]" />
+                <input type="checkbox" aria-label="In evidenza in homepage" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} className="accent-[#C05A3E]" />
                 In evidenza in homepage
               </label>
             </div>

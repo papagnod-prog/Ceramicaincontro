@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { COMPANY } from "@/lib/company";
+import { STORE_COLLECTIONS } from "@/lib/collections";
 
 export const Footer = () => (
   <footer className="bg-[#1C1917] text-[#F8F6F2] mt-24">
@@ -16,7 +17,7 @@ export const Footer = () => (
         <div>
           <h4 className="eyebrow mb-4 text-[#78716C]">Collezioni</h4>
           <ul className="space-y-2 text-sm text-[#D6D3D1]">
-            {["SMUSSO", "Battiscopa", "Moon Spots", "Paper Glass", "Stony"].map((c) => (
+            {STORE_COLLECTIONS.map((c) => (
               <li key={c}>
                 <Link to={`/prodotti?collection=${encodeURIComponent(c)}`} className="hover:text-white transition-colors">
                   {c}

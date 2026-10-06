@@ -1,24 +1,37 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ShoppingBag, User, Menu, X, Search, Beaker } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { STORE_COLLECTIONS } from "@/lib/collections";
 import { useCart } from "@/context/CartContext";
 import { useSamples } from "@/context/SamplesContext";
 import { useAuth } from "@/context/AuthContext";
 
-const COLLECTIONS = ["SMUSSO", "Battiscopa", "Moon Spots", "Paper Glass", "Stony"];
+const COLLECTIONS = STORE_COLLECTIONS;
 
 export const Header = () => {
   const { count, setOpen } = useCart();
   const { count: sampleCount } = useSamples();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [params] = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState("");
+  const mobileSearchRef = useRef(null);
+  const urlSearch = pathname === "/prodotti" ? params.get("search") || "" : "";
+
+  // Allinea il campo alla ricerca attiva nel catalogo (es. dopo "Cancella").
+  useEffect(() => { setQ(urlSearch); }, [urlSearch]);
+  useEffect(() => { if (searchOpen) mobileSearchRef.current?.focus(); }, [searchOpen]);
 
   const submitSearch = (e) => {
     e.preventDefault();
-    navigate(`/prodotti?search=${encodeURIComponent(q)}`);
+    const term = q.trim();
+    navigate(term ? `/prodotti?search=${encodeURIComponent(term)}` : "/prodotti");
     setMobileOpen(false);
+    setSearchOpen(false);
+    e.currentTarget.querySelector("input")?.blur();
   };
 
   return (
@@ -66,6 +79,17 @@ export const Header = () => {
 
           <div className="flex items-center gap-1 sm:gap-3">
             <button
+              type="button"
+              data-testid="mobile-search-toggle"
+              onClick={() => { setSearchOpen((v) => !v); setMobileOpen(false); }}
+              className="md:hidden p-2.5 rounded-full hover:bg-[#F1EEE8] transition-colors"
+              aria-label={searchOpen ? "Chiudi ricerca" : "Cerca prodotti"}
+              aria-expanded={searchOpen}
+              aria-controls="mobile-search-panel"
+            >
+              {searchOpen ? <X className="w-5 h-5 text-[#1C1917]" /> : <Search className="w-5 h-5 text-[#1C1917]" />}
+            </button>
+            <button
               data-testid="samples-trigger"
               onClick={() => navigate("/campioni")}
               className="relative p-2.5 rounded-full hover:bg-[#F1EEE8] transition-colors"
@@ -85,9 +109,11 @@ export const Header = () => {
               <Search aria-hidden="true" className="w-4 h-4 absolute left-3 text-[#78716C]" />
               <input
                 data-testid="search-input"
+                type="search"
+                enterKeyHint="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                aria-label="Cerca nel negozio" placeholder="Cerca..."
+                aria-label="Cerca per nome o codice prodotto" placeholder="Nome o codice..."
                 className="pl-9 pr-3 py-2 w-40 bg-white border border-[#E2DDD5] rounded-full text-sm focus:outline-none focus:w-52 transition-all"
               />
             </form>
@@ -117,8 +143,9 @@ export const Header = () => {
             </button>
             <button
               className="lg:hidden p-2.5"
-              onClick={() => setMobileOpen((v) => !v)}
+              onClick={() => { setMobileOpen((v) => !v); setSearchOpen(false); }}
               aria-label="Menu"
+              aria-expanded={mobileOpen}
               data-testid="mobile-menu-toggle"
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -127,14 +154,45 @@ export const Header = () => {
         </div>
       </div>
 
+      {searchOpen && (
+        <div id="mobile-search-panel" data-testid="mobile-search-panel" className="md:hidden border-t border-[#E2DDD5] bg-[#F8F6F2] px-4 py-3">
+          <form onSubmit={submitSearch} className="flex items-center relative">
+            <label htmlFor="mobile-search-input" className="sr-only">Cerca per nome o codice prodotto</label>
+            <Search aria-hidden="true" className="w-4 h-4 absolute left-3 text-[#78716C]" />
+            <input
+              id="mobile-search-input"
+              aria-label="Cerca per nome o codice prodotto"
+              ref={mobileSearchRef}
+              data-testid="mobile-search-input"
+              type="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Nome o codice, es. 33P522"
+              className="pl-9 pr-24 py-2.5 w-full bg-white border border-[#E2DDD5] rounded-full text-base focus:outline-none focus:border-[#C05A3E]"
+            />
+            <button
+              type="submit"
+              data-testid="mobile-search-submit"
+              className="absolute right-1 bg-[#C05A3E] hover:bg-[#A64B32] text-white text-sm font-semibold rounded-full px-4 py-1.5 transition-colors"
+            >
+              Cerca
+            </button>
+          </form>
+        </div>
+      )}
+
       {mobileOpen && (
         <div className="lg:hidden border-t border-[#E2DDD5] bg-[#F8F6F2] px-4 py-5 space-y-3">
           <form onSubmit={submitSearch} className="flex items-center relative mb-3">
             <Search aria-hidden="true" className="w-4 h-4 absolute left-3 text-[#78716C]" />
             <input
+              type="search"
+              enterKeyHint="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              aria-label="Cerca prodotti" placeholder="Cerca prodotti..."
+              aria-label="Cerca per nome o codice prodotto" placeholder="Nome o codice..."
               className="pl-9 pr-3 py-2.5 w-full bg-white border border-[#E2DDD5] rounded-full text-sm focus:outline-none"
             />
           </form>
