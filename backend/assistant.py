@@ -74,6 +74,7 @@ REGOLE
 - Rispondi nella lingua dell'utente (italiano o inglese). Tono cordiale, semplice, concreto. Massimo 5 frasi, testo semplice, senza markdown né elenchi con asterischi.
 - Usa SOLO la BASE DI CONOSCENZA e i risultati degli strumenti. Se un dato non c'è, dillo e proponi una persona (strumento proponi_operatore). Non inventare mai prezzi, tempi, disponibilità, sconti, caratteristiche tecniche, norme di posa.
 - Prezzi e spedizioni: chiama sempre cerca_prodotti / calcola_spedizione. Ricorda che i prezzi sono IVA esclusa quando li citi, salvo diversa indicazione dello strumento.
+- Confezioni: per i battiscopa usa pezzi_per_confezione, mai m². Non convertire pezzi in superfici o metri lineari senza dati verificati. Il valore stock 0 non significa esaurito: non dedurre la disponibilità fisica dallo stock e non promettere pronta consegna.
 - Stato ordine: non chiedere numero ed email in chat. Usa mostra_modulo_ordine: il cliente li inserisce in un modulo sicuro. Se nel CONTESTO ORDINE sotto c'è già un ordine verificato, rispondi su quello.
 - Resi, rimborsi, recessi, merce danneggiata, reclami: spiega solo la regola generale della base di conoscenza, NON decidere né promettere, e usa proponi_operatore.
 - Non chiedere né accettare dati di pagamento, IBAN, password. Se l'utente li scrive, invitalo a non farlo.
@@ -88,7 +89,7 @@ BASE DI CONOSCENZA
 TOOLS = [
     {
         "name": "cerca_prodotti",
-        "description": "Cerca nel catalogo reale. Restituisce fino a 8 prodotti con id, nome, collezione, formato, finitura, colore, uso, prezzo (IVA esclusa, per confezione), m² per confezione, peso, disponibilità.",
+        "description": "Cerca nel catalogo reale. Restituisce fino a 8 prodotti con id, nome, collezione, formato, finitura, colore, uso, prezzo (IVA esclusa, per confezione), pezzi per confezione per i battiscopa oppure m² per gli altri prodotti, peso e stock informativo (non prova della disponibilità fisica).",
         "input_schema": {"type": "object", "properties": {
             "testo": {"type": "string", "description": "Parola chiave nel nome (es. 'rovere', 'smusso')"},
             "collezione": {"type": "string", "description": "Nome collezione (es. Battiscopa, SMUSSO, Moon Spots, Paper Glass, Stony)"},
@@ -121,6 +122,14 @@ TOOLS = [
 
 
 # ---------------------------------------------------------------- module wiring
+def package_quantity(product: dict) -> dict:
+    """Expose the legacy field with the correct unit, without changing catalog data."""
+    usage = str(product.get("usage", "")).strip().casefold()
+    collection = str(product.get("collection", "")).strip().casefold()
+    key = "pezzi_per_confezione" if usage == "battiscopa" or collection in ("battiscopa", "smusso") else "m2_per_confezione"
+    return {key: product.get("coverage_sqm")}
+
+
 def register(api_router, ctx: dict):
     """ctx: db, price_cart, quote_shipping, get_vat_rates, compute_vat, CartItem,
     order_status_labels, safe_send, brand_wrap, consent_record, require, jwt_secret, logger."""
@@ -179,10 +188,10 @@ def register(api_router, ctx: dict):
             "id": p["id"], "nome": p["name"], "collezione": p.get("collection"),
             "formato": p.get("format"), "finitura": p.get("finish"), "colore": p.get("color"),
             "uso": p.get("usage"), "prezzo_confezione_iva_esclusa_eur": p.get("price"),
-            "m2_per_confezione": p.get("coverage_sqm"), "peso_kg": p.get("weight_kg"),
-            "disponibili": p.get("stock"),
+            **package_quantity(p), "peso_kg": p.get("weight_kg"),
+            "stock_informativo": p.get("stock"),
             "link": f"https://ceramicaincontro.it/store/prodotto/{p['id']}"} for p in items],
-            "nota": "nessun risultato" if not items else ""}
+            "nota": "nessun risultato" if not items else "Stock 0 non indica esaurito; la disponibilità fisica e i tempi vanno verificati con il personale."}
 
     async def tool_calcola_spedizione(a: dict):
         regione = str(a.get("regione", "")).strip()[:40]
@@ -263,7 +272,7 @@ def register(api_router, ctx: dict):
     # ------------------------------------------------------------ routes
     @api_router.get("/assistant/config")
     async def assistant_config():
-        return {"enabled": enabled()}
+        return {"enabled": enabled(), "catalog_units_version": 2}
 
     @api_router.post("/assistant/chat")
     async def assistant_chat(data: ChatInput, request: Request):

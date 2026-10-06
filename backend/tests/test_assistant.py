@@ -48,7 +48,19 @@ def setup_module(m):
     client.__enter__()
 
 def test_config_enabled():
-    assert client.get("/api/assistant/config").json() == {"enabled": True}
+    assert client.get("/api/assistant/config").json() == {"enabled": True, "catalog_units_version": 2}
+
+def test_battiscopa_quantity_is_pieces_not_square_metres():
+    for prefix, quantity in (("33", 30), ("60", 15)):
+        result = assistant.package_quantity({"name": prefix, "usage": "Battiscopa", "coverage_sqm": quantity})
+        assert result == {"pezzi_per_confezione": quantity}
+        assert "m2_per_confezione" not in result
+
+def test_smusso_quantity_is_pieces_even_without_usage():
+    assert assistant.package_quantity({"collection": " SMUSSO ", "coverage_sqm": 15}) == {"pezzi_per_confezione": 15}
+
+def test_other_product_quantity_keeps_its_original_unit():
+    assert assistant.package_quantity({"usage": "Rivestimento", "coverage_sqm": 0.72}) == {"m2_per_confezione": 0.72}
 
 def test_sensitive_blocked_no_model_call():
     CALLS.clear(); install([])
@@ -74,6 +86,11 @@ def test_product_tool_roundtrip_and_usage_counted():
     assert r["text"].startswith("Ti consiglio")
     tr = CALLS[1]["messages"][-1]["content"][0]
     assert tr["type"] == "tool_result" and "prezzo_confezione_iva_esclusa_eur" in tr["content"]
+    result = json.loads(tr["content"])
+    assert result["risultati"]
+    for item in result["risultati"]:
+        assert "pezzi_per_confezione" in item and "m2_per_confezione" not in item
+        assert "stock_informativo" in item and "disponibili" not in item
 
 def test_order_flow_requires_matching_email():
     # crea ordine di prova
@@ -120,7 +137,7 @@ def test_cap_blocks_model():
 
 def test_disabled_without_key(monkeypatch):
     monkeypatch.setenv("ASSISTANT_ENABLED", "false")
-    assert client.get("/api/assistant/config").json() == {"enabled": False}
+    assert client.get("/api/assistant/config").json() == {"enabled": False, "catalog_units_version": 2}
     assert chat("ciao").status_code == 503
 
 def test_support_requires_consent_and_sends(monkeypatch):
