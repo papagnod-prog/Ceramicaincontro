@@ -10,4 +10,4 @@ export const COMPANY = {
   phoneIntl: "+39 080 898 4326",
   site: "https://ceramicaincontro.it",
 };
-export const TERMS_VERSION = "2026-10-01";
+export const TERMS_VERSION = "2026-10-06";

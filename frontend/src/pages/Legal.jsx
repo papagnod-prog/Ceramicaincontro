@@ -23,7 +23,7 @@ const Shell = ({ title, children }) => {
 const Owner = () => (
   <p>
     <strong>{COMPANY.name}</strong> — sede legale: {COMPANY.address} — C.F. e P.IVA {COMPANY.vat} — REA {COMPANY.rea} — capitale
-    sociale € {COMPANY.capital} <Todo>aggiungere "i.v." solo se interamente versato</Todo> — PEC {COMPANY.pec} — email{" "}
+    sociale € {COMPANY.capital} i.v. — PEC {COMPANY.pec} — email{" "}
     <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a> — tel. {COMPANY.phone}.
   </p>
 );
@@ -39,7 +39,7 @@ export const Privacy = () => (
       <li><strong>Ordini e acquisti</strong> (nome, email, telefono, indirizzi di spedizione e fatturazione, dati fiscali per le aziende, contenuto dell'ordine): esecuzione del contratto e adempimenti precontrattuali (art. 6.1.b GDPR).</li>
       <li><strong>Obblighi fiscali e contabili</strong> (fatturazione, conservazione delle scritture): obbligo di legge (art. 6.1.c). Conservazione per 10 anni.</li>
       <li><strong>Registrazione account</strong> (nome, email, password cifrata): esecuzione del servizio richiesto (art. 6.1.b). Dati conservati fino alla cancellazione dell'account.</li>
-      <li><strong>Richieste di campioni e preventivi</strong>: misure precontrattuali su tua richiesta (art. 6.1.b). Conservazione fino a 24 mesi dall'ultima comunicazione <Todo>conferma periodo</Todo>.</li>
+      <li><strong>Richieste di campioni e preventivi</strong>: misure precontrattuali su tua richiesta (art. 6.1.b). Conservazione fino a 24 mesi dall'ultima comunicazione.</li>
       <li><strong>Comunicazioni di servizio</strong> (email di conferma e aggiornamento stato dell'ordine): esecuzione del contratto.</li>
       <li><strong>Difesa di diritti in sede giudiziaria</strong>: legittimo interesse (art. 6.1.f).</li>
     </ul>
@@ -47,7 +47,7 @@ export const Privacy = () => (
     <h2>3. Prova di accettazione</h2>
     <p>Quando accetti le condizioni o confermi di aver letto questa informativa, registriamo data e ora, versione dei testi e una versione abbreviata dell'indirizzo IP, a prova dell'accettazione.</p>
     <h2>4. Destinatari</h2>
-    <p>I dati sono trattati da personale autorizzato e da fornitori nominati responsabili del trattamento: hosting del sito Aruba S.p.A. e infrastruttura dello store <Todo>fornitore hosting API (Render) e regione</Todo>, database <Todo>fornitore database/regione</Todo>, invio email transazionali <Todo>fornitore SMTP</Todo>, corrieri per la consegna (GLS, Bartolini/BRT, Fercam), Stripe Payments Europe Ltd. per i pagamenti con carta, Anthropic per l'assistente IA, istituto di credito per il bonifico, consulenti fiscali e amministrativi.</p>
+    <p>I dati sono trattati da personale autorizzato e da fornitori nominati responsabili del trattamento: hosting del sito Aruba S.p.A. e server dello store Render Services, Inc., database MongoDB Atlas (MongoDB, Inc.), invio email AMT Services S.r.l., corriere per la consegna Arco Spedizioni S.p.A., Stripe Payments Europe Ltd. per i pagamenti con carta, Anthropic per l'assistente IA, istituto di credito per il bonifico, consulenti fiscali e amministrativi.</p>
     <h2>5. Trasferimenti extra UE</h2>
     <p>Dove un fornitore tratti dati fuori dallo Spazio Economico Europeo, il trasferimento avviene con le garanzie previste dagli artt. 44-49 GDPR (decisione di adeguatezza, EU-US Data Privacy Framework o clausole contrattuali standard). Stripe e Anthropic (assistente IA) possono trattare dati anche fuori dallo SEE, con clausole contrattuali standard e altre garanzie previste <Todo>verifica per ciascun fornitore</Todo>.</p>
     <h2>6. Cookie e strumenti di tracciamento</h2>
@@ -97,15 +97,15 @@ export const Terms = () => (
     <h2>4. Conclusione del contratto e obbligo di pagamento</h2>
     <p>Cliccando su <strong>«Ordine con obbligo di pagamento»</strong> il cliente invia una proposta d'acquisto. Il contratto si conclude con la nostra conferma dell'ordine via email. Al cliente è richiesto il pagamento secondo il metodo scelto.</p>
     <h2>5. Pagamento</h2>
-    <p>Puoi pagare con <strong>carta</strong> (tramite Stripe, pagamento immediato) oppure con <strong>bonifico bancario</strong> secondo le coordinate indicate nell'email di conferma, con il numero d'ordine come causale. Con la carta l'ordine è confermato a pagamento riuscito; con il bonifico l'ordine viene preparato alla ricezione dell'accredito. I prezzi sono in euro. <Todo>termine entro cui effettuare il bonifico</Todo></p>
+    <p>Puoi pagare con <strong>carta</strong> (tramite Stripe, pagamento immediato) oppure con <strong>bonifico bancario</strong> secondo le coordinate indicate nell'email di conferma, con il numero d'ordine come causale. Con la carta l'ordine è confermato a pagamento riuscito; con il bonifico l'ordine viene preparato alla ricezione dell'accredito. I prezzi sono in euro. Il bonifico va effettuato entro 5 giorni lavorativi dall'ordine; in mancanza l'ordine può essere annullato.</p>
     <h2>6. Spedizione e consegna</h2>
-    <p>La spedizione è effettuata in Italia con corriere <Todo>corriere e tempi di consegna</Todo>. Le spese dipendono da peso, destinazione e opzione scelta e sono indicate prima dell'ordine. L'opzione «Consegna a piano strada» prevede la consegna al piano strada (non al piano). Alla consegna il cliente deve verificare imballo e quantità e segnalare al corriere eventuali danni (riserva scritta sul documento di consegna), informandoci entro 8 giorni.</p>
+    <p>La spedizione è effettuata in Italia con corriere Arco Spedizioni S.p.A.; la consegna avviene di norma in 4-5 giorni lavorativi. Le spese dipendono da peso, destinazione e opzione scelta e sono indicate prima dell'ordine. L'opzione «Consegna a piano strada» prevede la consegna al piano strada (non al piano). Alla consegna il cliente deve verificare imballo e quantità e segnalare al corriere eventuali danni (riserva scritta sul documento di consegna), informandoci entro 8 giorni.</p>
     <h2>7. Diritto di recesso (consumatori)</h2>
     <p>Il consumatore può recedere entro 14 giorni dal ricevimento dei beni senza indicarne il motivo, secondo le modalità della pagina <Link to="/recesso">Diritto di recesso</Link>.</p>
     <h2>8. Garanzia legale di conformità</h2>
     <p>Ai consumatori si applica la garanzia legale di conformità di 2 anni (artt. 128 ss. Codice del Consumo). Per i professionisti si applicano gli artt. 1490 ss. c.c. con denuncia dei vizi entro 8 giorni dalla scoperta.</p>
     <h2>9. Assistenza e reclami</h2>
-    <p>Per assistenza: {COMPANY.email}, tel. {COMPANY.phone}. I consumatori possono utilizzare la piattaforma europea ODR per la risoluzione online delle controversie: <a href="https://ec.europa.eu/consumers/odr" rel="noopener noreferrer">ec.europa.eu/consumers/odr</a>.</p>
+    <p>Per assistenza: {COMPANY.email}, tel. {COMPANY.phone}.</p>
     <h2>10. Legge applicabile e foro</h2>
     <p>Legge italiana. Per i consumatori è competente il foro di residenza o domicilio del consumatore; per i professionisti il foro di Trani.</p>
     <h2>11. Privacy</h2>
@@ -125,9 +125,9 @@ export const Withdrawal = () => (
       «Io sottoscritto/a ___ comunico di recedere dal contratto di vendita dei seguenti beni: ___ ordinati il ___ / ricevuti il ___ — numero d'ordine ___ — indirizzo ___ — data e firma (solo se su carta).»
     </blockquote>
     <h2>Restituzione dei beni e rimborso</h2>
-    <p>Devi restituire i beni entro 14 giorni dalla comunicazione di recesso, integri, nell'imballo originale. Le spese di restituzione sono a carico di <Todo>cliente o venditore</Todo>. Rimborsiamo tutti i pagamenti, incluse le spese di consegna standard, entro 14 giorni dalla comunicazione del recesso, con lo stesso mezzo di pagamento (o bonifico), potendo sospendere il rimborso fino al ricevimento dei beni.</p>
+    <p>Devi restituire i beni entro 14 giorni dalla comunicazione di recesso, integri, nell'imballo originale. Le spese di restituzione sono a carico del cliente. Rimborsiamo tutti i pagamenti, incluse le spese di consegna standard, entro 14 giorni dalla comunicazione del recesso, con lo stesso mezzo di pagamento (o bonifico), potendo sospendere il rimborso fino al ricevimento dei beni.</p>
     <h2>Eccezioni</h2>
-    <p>Il recesso non si applica ai beni confezionati su misura o chiaramente personalizzati (art. 59 Codice del Consumo). <Todo>prodotti tagliati su misura o fuori catalogo da escludere</Todo> Il consumatore risponde della diminuzione di valore dei beni dovuta a manipolazione non necessaria.</p>
+    <p>Il recesso non si applica ai beni confezionati su misura o chiaramente personalizzati (art. 59 Codice del Consumo). Sono esclusi i prodotti tagliati o realizzati su misura e gli articoli fuori catalogo prodotti su richiesta del cliente. Il consumatore risponde della diminuzione di valore dei beni dovuta a manipolazione non necessaria.</p>
     <h2>Merce danneggiata o non conforme</h2>
     <p>In questi casi si applica la garanzia legale: scrivi a {COMPANY.email} allegando foto.</p>
   </Shell>
@@ -163,7 +163,7 @@ export const Accessibility = () => (
       <li>Verifica dei contrasti e della navigazione da tastiera nell'area amministrativa non ancora conclusa.</li>
     </ul>
     <h2>Feedback e contatti</h2>
-    <p>Per segnalare problemi di accessibilità o richiedere contenuti in formato alternativo: <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>, tel. {COMPANY.phone}. Rispondiamo entro <Todo>tempo di risposta, es. 15 giorni</Todo>.</p>
+    <p>Per segnalare problemi di accessibilità o richiedere contenuti in formato alternativo: <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>, tel. {COMPANY.phone}. Rispondiamo entro 15 giorni.</p>
     <h2>Procedura di attuazione</h2>
     <p>In caso di risposta insoddisfacente puoi rivolgerti all'Agenzia per l'Italia Digitale (AgID): <a href="https://www.agid.gov.it" rel="noopener noreferrer">www.agid.gov.it</a>.</p>
   </Shell>
@@ -183,7 +183,7 @@ export const AiAssistant = () => (
       <li>Il testo che scrivi è inviato ad Anthropic (fornitore di IA, responsabile del trattamento con accordo di trattamento dati) per generare la risposta; può essere trattato fuori dallo SEE con clausole contrattuali standard.</li>
       <li>Non salviamo le conversazioni: la cronologia resta nel tuo browser finché chiudi o ricarichi la pagina.</li>
       <li>Email e numeri di telefono scritti in chat vengono oscurati prima dell'invio; non scrivere carte di pagamento, IBAN o altri dati riservati.</li>
-      <li>Se chiedi di parlare con una persona, conserviamo nome, email, messaggio e riepilogo della chat per rispondere, per <Todo>periodo di conservazione</Todo>.</li>
+      <li>Se chiedi di parlare con una persona, conserviamo nome, email, messaggio e riepilogo della chat per rispondere, per 6 mesi.</li>
     </ul>
     <p>Base giuridica: esecuzione di misure precontrattuali/contrattuali e legittimo interesse a fornire assistenza (art. 6 GDPR). Diritti e contatti nell'<Link to="/privacy">Informativa privacy</Link>. Assistenza umana: <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>, {COMPANY.phone}.</p>
   </Shell>

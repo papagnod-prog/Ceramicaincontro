@@ -411,7 +411,7 @@ SAMPLE_SHIPPING_FEE = 6.0
 # ---------------------------------------------------------------------------
 SHIPPING_OPTIONS = [
     {"id": "standard", "name": "Corriere Standard",
-     "free_over": 900.0, "eta": "5-7 giorni lavorativi",
+     "free_over": 900.0, "eta": "4-5 giorni lavorativi",
      "description": "Consegna al piano strada in tutta Italia."},
     {"id": "pickup", "name": "Ritiro in sede — Corato",
      "free_over": None, "eta": "Su appuntamento",
@@ -566,7 +566,7 @@ async def compute_regional_shipping(shipping_option_id: str, region: str, lines:
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
-TERMS_VERSION = "2026-10-01"
+TERMS_VERSION = "2026-10-06"
 
 
 def _consent_record(request: Request, kinds: List[str]) -> dict:
