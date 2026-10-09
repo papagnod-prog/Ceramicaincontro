@@ -53,6 +53,11 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", SMTP_USER)
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Ceramica Incontro")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
+# Relay via WordPress (WP Mail SMTP): Render free blocca le porte SMTP 25/465/587,
+# quindi, se configurato, l'email viene consegnata a un mu-plugin WordPress via HTTPS
+# (richiesta firmata HMAC-SHA256) che la spedisce con wp_mail().
+WP_MAIL_RELAY_URL = (os.environ.get("WP_MAIL_RELAY_URL") or "").strip()
+WP_MAIL_RELAY_SECRET = (os.environ.get("WP_MAIL_RELAY_SECRET") or "").strip()
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ceramicaincontro.it")
 # The React SPA is served under the /store path (see frontend basename), so any link
 # sent by email must point there, not at the bare domain root.
@@ -188,7 +193,45 @@ def _send_email_smtp_sync(*, to: str, subject: str, html: str) -> str:
     return msg_id
 
 
+async def _send_email_wp_relay(*, to: str, subject: str, html: str) -> str:
+    import base64
+    import hashlib
+    import hmac
+    import json
+    import time
+
+    payload = {
+        "to": to,
+        "subject_b64": base64.b64encode(subject.encode("utf-8")).decode("ascii"),
+        "html_b64": base64.b64encode(html.encode("utf-8")).decode("ascii"),
+        "reply_to": EMAIL_REPLY_TO or "",
+        "ts": int(time.time()),
+        "nonce": secrets.token_hex(16),
+    }
+    body = json.dumps(payload, separators=(",", ":"))
+    sig = hmac.new(WP_MAIL_RELAY_SECRET.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).hexdigest()
+    async with httpx.AsyncClient(timeout=20) as http:
+        r = await http.post(WP_MAIL_RELAY_URL, content=body.encode("utf-8"), headers={
+            "Content-Type": "application/json",
+            "X-CI-Signature": sig,
+            "User-Agent": "CeramicaIncontro-Store/1.0",
+        })
+    try:
+        data = r.json()
+    except ValueError:
+        data = {}
+    if r.status_code != 200 or not data.get("ok"):
+        detail = data.get("message") or data.get("code") or r.text[:200]
+        raise RuntimeError(f"relay WordPress HTTP {r.status_code}: {detail}")
+    return str(data.get("id") or payload["nonce"])
+
+
 async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+    if WP_MAIL_RELAY_URL and WP_MAIL_RELAY_SECRET:
+        _assert_safe_email(subject, html)
+        msg_id = await _send_email_wp_relay(to=to, subject=subject, html=html)
+        logger.info(f"Email inviata via WordPress a {to}")
+        return msg_id
     if not (SMTP_HOST and SMTP_USER and SMTP_PASSWORD):
         logger.warning("SMTP not configured (SMTP_HOST/SMTP_USER/SMTP_PASSWORD) — skipping email send")
         return None
