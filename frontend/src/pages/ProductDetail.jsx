@@ -42,13 +42,13 @@ export default function ProductDetail() {
         <ArrowLeft className="w-4 h-4" /> Torna al negozio
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        <ProductGallery
-          images={[product.image, ...(product.gallery || [])]}
-          collectionInitial={product.collection?.[0]}
-          alt={product.name}
-        />
+      <ProductGallery
+        images={[product.image, ...(product.gallery || [])]}
+        collectionInitial={product.collection?.[0]}
+        alt={product.name}
+      />
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10 mt-10">
         <div>
           <p className="eyebrow text-[#C05A3E] mb-3">{product.collection}</p>
           <h1 data-testid="pdp-product-title" className="font-serif-display text-4xl lg:text-5xl font-light leading-tight">
@@ -98,9 +98,10 @@ export default function ProductDetail() {
             Prova prima l'acquisto: campioni gratuiti fino a {MAX_SAMPLES} prodotti (solo &euro; 6 di spedizione),{" "}
             <Link to="/campioni" className="underline hover:text-[#C05A3E]">vai al carrello campioni</Link>.
           </p>
+        </div>
 
-          {/* Specs */}
-          <div className="mt-10 border-t border-[#E2DDD5] pt-8">
+        {/* Specs */}
+        <div className="border-t border-[#E2DDD5] pt-8 lg:border-t-0 lg:pt-2">
             <h3 className="eyebrow mb-4">Scheda tecnica</h3>
             <dl className="grid grid-cols-2 gap-y-3 gap-x-8">
               {specs.filter(([, v]) => v).map(([k, v]) => (
@@ -110,7 +111,6 @@ export default function ProductDetail() {
                 </div>
               ))}
             </dl>
-          </div>
         </div>
       </div>
     </div>

@@ -44,77 +44,62 @@ export default function ProductGallery({ images, collectionInitial, alt }) {
 
   return (
     <div>
-      <div className="flex gap-4" data-testid="pdp-gallery">
-        {photos.length > 1 && (
-          <div className="hidden sm:flex flex-col gap-3 w-20 flex-shrink-0">
-            {photos.map((src, i) => (
-              <button
-                key={i}
-                type="button"
-                data-testid={`pdp-thumb-${i}`}
-                onClick={() => setActive(i)}
-                className={`w-20 h-20 bg-[#F1EEE8] overflow-hidden border-2 transition-colors ${
-                  i === active ? "border-[#C05A3E]" : "border-transparent hover:border-[#C0B9AE]"
-                }`}
-              >
-                <img src={src} alt={`${alt} ${i + 1}`} className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
-
+      <div data-testid="pdp-gallery">
         <div
-          ref={mainRef}
-          className="relative bg-[#F1EEE8] aspect-square overflow-hidden flex-1 cursor-zoom-in"
-          onMouseEnter={() => setHovering(true)}
-          onMouseLeave={() => setHovering(false)}
-          onMouseMove={handleMouseMove}
+          className="bg-[#F1EEE8] w-full px-4 py-6 sm:px-10 sm:py-10 flex items-center justify-center cursor-zoom-in"
           onClick={() => setLightboxOpen(true)}
-          data-testid="pdp-main-image"
         >
-          <img src={current} alt={alt} className="w-full h-full object-cover" />
+          <div
+            ref={mainRef}
+            className="relative max-w-full"
+            onMouseEnter={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
+            onMouseMove={handleMouseMove}
+            data-testid="pdp-main-image"
+          >
+            <img src={current} alt={alt} className="block w-auto max-w-full h-auto max-h-[380px] object-contain" />
 
-          {hovering && (
-            <div
-              className="hidden md:block absolute rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.15),0_8px_24px_rgba(0,0,0,0.25)] pointer-events-none overflow-hidden"
-              style={{
-                width: LENS_SIZE,
-                height: LENS_SIZE,
-                left: lensPos.x,
-                top: lensPos.y,
-                backgroundImage: `url(${current})`,
-                backgroundSize: `${lensPos.w}px ${lensPos.h}px`,
-                backgroundPosition: `${lensPos.bgX}px ${lensPos.bgY}px`,
-              }}
-            />
-          )}
-
-          <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/70 text-white text-xs px-3 py-1.5">
-            <ZoomIn className="w-3.5 h-3.5" /> Clic per anteprima
+            {hovering && (
+              <div
+                className="hidden md:block absolute rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.15),0_8px_24px_rgba(0,0,0,0.25)] pointer-events-none overflow-hidden"
+                style={{
+                  width: LENS_SIZE,
+                  height: LENS_SIZE,
+                  left: lensPos.x,
+                  top: lensPos.y,
+                  backgroundImage: `url(${current})`,
+                  backgroundSize: `${lensPos.w}px ${lensPos.h}px`,
+                  backgroundPosition: `${lensPos.bgX}px ${lensPos.bgY}px`,
+                }}
+              />
+            )}
           </div>
+        </div>
 
-          {photos.length > 1 && (
-            <div className="sm:hidden absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-              {photos.map((_, i) => (
-                <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === active ? "bg-white" : "bg-white/40"}`} />
-              ))}
-            </div>
-          )}
+        <div className="flex justify-end mt-2">
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs text-[#78716C] hover:text-[#1C1917]"
+          >
+            <ZoomIn className="w-3.5 h-3.5" /> Clic per anteprima
+          </button>
         </div>
       </div>
 
       {photos.length > 1 && (
-        <div className="sm:hidden flex gap-2 mt-3">
+        <div className="flex gap-3 mt-3 overflow-x-auto">
           {photos.map((src, i) => (
             <button
               key={i}
               type="button"
+              data-testid={`pdp-thumb-${i}`}
               onClick={() => setActive(i)}
-              className={`w-16 h-16 bg-[#F1EEE8] overflow-hidden border-2 flex-shrink-0 ${
-                i === active ? "border-[#C05A3E]" : "border-transparent"
+              className={`w-28 h-16 sm:w-36 sm:h-20 bg-[#F1EEE8] p-1.5 overflow-hidden border-2 flex-shrink-0 transition-colors ${
+                i === active ? "border-[#C05A3E]" : "border-transparent hover:border-[#C0B9AE]"
               }`}
             >
-              <img src={src} alt={`${alt} ${i + 1}`} className="w-full h-full object-cover" />
+              <img src={src} alt={`${alt} ${i + 1}`} className="w-full h-full object-contain" />
             </button>
           ))}
         </div>
