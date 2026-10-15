@@ -5,7 +5,7 @@ import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText, Truck, Search,
+  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText, Truck, Search, Check,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -66,6 +66,7 @@ export default function Admin() {
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [rateFilter, setRateFilter] = useState({ shipping_option_id: "", collection: "", region: "" });
+  const [editingRate, setEditingRate] = useState(null); // { id, price }
 
   // Payment settings (IBAN bonifico + chiavi Stripe/PayPal)
   const [paymentSettings, setPaymentSettings] = useState({
@@ -295,6 +296,25 @@ export default function Admin() {
     await api.delete(`/admin/shipping/rates/${id}`);
     toast.success("Tariffa eliminata");
     loadShipping();
+  };
+  const saveRatePrice = async (r) => {
+    const raw = String(editingRate?.price ?? "").trim().replace(",", ".");
+    const price = parseFloat(raw);
+    if (raw === "" || Number.isNaN(price) || price < 0) {
+      toast.error("Inserisci un prezzo valido (0 o maggiore)");
+      return;
+    }
+    try {
+      await api.post("/admin/shipping/rates", {
+        shipping_option_id: r.shipping_option_id, region: r.region, collection: r.collection,
+        weight_bracket_id: r.weight_bracket_id, price: Math.round(price * 100) / 100,
+      });
+      toast.success("Tariffa aggiornata");
+      setEditingRate(null);
+      loadShipping();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
   };
   const bracketLabel = (id) => brackets.find((b) => b.id === id)?.label || id;
   const methodLabel = (id) => shippingMethods.find((m) => m.id === id)?.name || id;
@@ -883,8 +903,33 @@ export default function Admin() {
                       <td className="px-4 py-3">{r.region}</td>
                       <td className="px-4 py-3">{r.collection}</td>
                       <td className="px-4 py-3">{bracketLabel(r.weight_bracket_id)}</td>
-                      <td className="px-4 py-3 font-medium">{eur(r.price)}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 font-medium">
+                        {editingRate?.id === r.id ? (
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); saveRatePrice(r); }}
+                            className="flex items-center gap-1"
+                            data-testid={`admin-rate-edit-form-${r.id}`}
+                          >
+                            <input
+                              type="number" step="0.01" min="0" autoFocus
+                              aria-label="Nuovo prezzo (€)"
+                              className="w-28 bg-white border border-[#E2DDD5] px-3 py-1.5 focus:outline-none focus:border-[#C05A3E] text-sm"
+                              value={editingRate.price}
+                              onChange={(e) => setEditingRate((x) => ({ ...x, price: e.target.value }))}
+                              onKeyDown={(e) => { if (e.key === "Escape") setEditingRate(null); }}
+                              data-testid={`admin-rate-edit-input-${r.id}`}
+                            />
+                            <button type="submit" title="Salva" aria-label="Salva" className="p-2 hover:bg-[#EEF2EE] rounded text-[#6B7A6E]" data-testid={`admin-rate-edit-save-${r.id}`}><Check className="w-4 h-4" /></button>
+                            <button type="button" title="Annulla" aria-label="Annulla" onClick={() => setEditingRate(null)} className="p-2 hover:bg-[#F1EEE8] rounded text-[#78716C]" data-testid={`admin-rate-edit-cancel-${r.id}`}><X className="w-4 h-4" /></button>
+                          </form>
+                        ) : (
+                          eur(r.price)
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {editingRate?.id !== r.id && (
+                          <button onClick={() => setEditingRate({ id: r.id, price: r.price })} title="Modifica prezzo" aria-label="Modifica prezzo" className="p-2 hover:bg-[#F1EEE8] rounded" data-testid={`admin-rate-edit-${r.id}`}><Pencil className="w-4 h-4" /></button>
+                        )}
                         <button onClick={() => deleteRate(r.id)} className="p-2 hover:bg-[#FBEAE5] rounded text-[#C05A3E]"><Trash2 className="w-4 h-4" /></button>
                       </td>
                     </tr>

@@ -32,7 +32,7 @@ export default function ProductDetail() {
     ["Finitura", product.finish],
     ["Colore", product.color],
     ["Utilizzo", product.usage],
-    ["Peso", `${product.weight_kg} kg / pz`],
+    ["Peso", `${product.weight_kg} kg / cf`],
     ["Pezzi per confezione", `${product.coverage_sqm}`],
   ];
 
