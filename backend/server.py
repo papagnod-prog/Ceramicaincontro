@@ -454,7 +454,7 @@ SAMPLE_SHIPPING_FEE = 6.0
 # ---------------------------------------------------------------------------
 SHIPPING_OPTIONS = [
     {"id": "standard", "name": "Corriere Standard",
-     "free_over": 900.0, "eta": "4-5 giorni lavorativi",
+     "free_over": None, "eta": "4-5 giorni lavorativi",
      "description": "Consegna al piano strada in tutta Italia."},
     {"id": "pickup", "name": "Ritiro in sede — Corato",
      "free_over": None, "eta": "Su appuntamento",
