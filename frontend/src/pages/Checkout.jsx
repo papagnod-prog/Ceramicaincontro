@@ -6,8 +6,17 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { ShieldCheck, Truck, Mail, CreditCard } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { isValidCodiceFiscale, normalizeCodiceFiscale } from "@/lib/codiceFiscale";
 import { ConsentCheckbox } from "@/components/shop/ConsentCheckbox";
 import { Link } from "react-router-dom";
+
+const cfProblem = (value) => {
+  const cf = normalizeCodiceFiscale(value);
+  if (!cf) return "Inserisci il codice fiscale.";
+  if (cf.length !== 16) return `Il codice fiscale deve avere 16 caratteri (ne hai inseriti ${cf.length}).`;
+  if (!isValidCodiceFiscale(cf)) return "Il codice fiscale non sembra corretto: controlla i 16 caratteri.";
+  return "";
+};
 
 export default function Checkout() {
   usePageTitle("Checkout");
@@ -40,7 +49,9 @@ export default function Checkout() {
     email: "", name: "", phone: "",
     line1: "", city: "", postal_code: "", province: "", region: "",
     vat_number: "", codice_fiscale: "", company: "", sdi_code: "", pec_address: "",
+    cf_privato: "",
   });
+  const [cfError, setCfError] = useState("");
 
   useEffect(() => {
     if (items.length === 0) navigate("/prodotti");
@@ -99,6 +110,15 @@ export default function Checkout() {
       toast.error("Per la fatturazione azienda indica il Codice SDI oppure l'indirizzo PEC.");
       return;
     }
+    if (!isAzienda) {
+      const msg = cfProblem(form.cf_privato);
+      if (msg) {
+        setCfError(msg);
+        toast.error(msg);
+        document.querySelector('[data-testid="checkout-cf-privato"]')?.focus();
+        return;
+      }
+    }
     setBusy(true);
     setError("");
     try {
@@ -116,7 +136,7 @@ export default function Checkout() {
               company: form.company, vat_number: form.vat_number, codice_fiscale: form.codice_fiscale,
               sdi_code: form.sdi_code, pec_address: form.pec_address,
             }
-          : { is_business: false },
+          : { is_business: false, codice_fiscale: normalizeCodiceFiscale(form.cf_privato) },
         payment_method: paymentMethod,
         accept_terms: okTerms,
         accept_withdrawal_info: okWithdrawal,
@@ -185,6 +205,35 @@ export default function Checkout() {
                 Azienda
               </label>
             </div>
+
+            {!isAzienda && (
+              <div className="grid sm:grid-cols-2 gap-4" data-testid="checkout-billing-privato">
+                <div>
+                  <input
+                    className={inputCls + (cfError ? " border-[#B42318]" : "")}
+                    aria-label="Codice Fiscale"
+                    aria-invalid={cfError ? "true" : "false"}
+                    aria-describedby={cfError ? "checkout-cf-privato-error" : undefined}
+                    placeholder="Codice Fiscale"
+                    required
+                    maxLength={20}
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={form.cf_privato}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, cf_privato: normalizeCodiceFiscale(e.target.value) }));
+                      if (cfError) setCfError("");
+                    }}
+                    onBlur={() => form.cf_privato && setCfError(cfProblem(form.cf_privato))}
+                    data-testid="checkout-cf-privato"
+                  />
+                  {cfError && (
+                    <p id="checkout-cf-privato-error" role="alert" className="text-xs text-[#B42318] mt-1" data-testid="checkout-cf-privato-error">{cfError}</p>
+                  )}
+                </div>
+                <p className="text-xs text-[#78716C] self-center">Obbligatorio per i clienti privati.</p>
+              </div>
+            )}
 
             {isAzienda && (
               <div className="grid sm:grid-cols-2 gap-4" data-testid="checkout-billing-azienda">
