@@ -126,11 +126,11 @@ export const Withdrawal = () => (
       «Io sottoscritto/a ___ comunico di recedere dal contratto di vendita dei seguenti beni: ___ ordinati il ___ / ricevuti il ___ — numero d'ordine ___ — indirizzo ___ — data e firma (solo se su carta).»
     </blockquote>
     <h2>Restituzione dei beni e rimborso</h2>
-    <p>Devi restituire i beni entro 14 giorni dalla comunicazione di recesso, integri, nell'imballo originale. Le spese di restituzione sono a carico del cliente. Rimborsiamo tutti i pagamenti, incluse le spese di consegna standard, entro 14 giorni dalla comunicazione del recesso, con lo stesso mezzo di pagamento (o bonifico), potendo sospendere il rimborso fino al ricevimento dei beni.</p>
+    <p>Devi restituire i beni entro 14 giorni dalla comunicazione di recesso, integri, nell'imballo originale. Le spese di restituzione sono a carico del cliente (per i beni danneggiati o non conformi la spedizione del reso è a carico nostro, vedi sotto). Rimborsiamo tutti i pagamenti, incluse le spese di consegna standard, entro 14 giorni dalla comunicazione del recesso, con lo stesso mezzo di pagamento (o bonifico), potendo sospendere il rimborso fino al ricevimento dei beni.</p>
     <h2>Eccezioni</h2>
-    <p>Il recesso non si applica ai beni confezionati su misura o chiaramente personalizzati (art. 59 Codice del Consumo). Sono esclusi i prodotti tagliati o realizzati su misura e gli articoli fuori catalogo prodotti su richiesta del cliente. Il consumatore risponde della diminuzione di valore dei beni dovuta a manipolazione non necessaria.</p>
+    <p>Il recesso non si applica ai beni confezionati su misura o chiaramente personalizzati (art. 59 Codice del Consumo). Sono esclusi i prodotti tagliati o realizzati su misura e gli articoli fuori catalogo prodotti su richiesta del cliente. I campioni gratuiti richiesti dalla pagina Campioni non rientrano nel recesso. Il consumatore risponde della diminuzione di valore dei beni dovuta a manipolazione non necessaria.</p>
     <h2>Merce danneggiata o non conforme</h2>
-    <p>In questi casi si applica la garanzia legale: scrivi a {COMPANY.email} allegando foto.</p>
+    <p>In questi casi si applica la garanzia legale: scrivi a {COMPANY.email} allegando foto. La spedizione del reso dei beni danneggiati o non conformi è a carico nostro.</p>
   </Shell>
 );
 

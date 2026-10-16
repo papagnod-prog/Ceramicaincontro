@@ -42,7 +42,7 @@
       "items": [
         { "q": "Posso restituire i prodotti?", "a": ["Se sei un consumatore, hai 14 giorni dal ricevimento della merce per recedere, senza dare spiegazioni. Il recesso non vale per aziende e professionisti."] },
         { "q": "Come faccio?", "a": ["Il modo più semplice è online: [Recedere dal contratto qui](/recedi). Inserisci numero d'ordine ed email, scegli i prodotti e premi «Conferma il recesso»: ricevi subito una ricevuta via email. In alternativa scrivi a [info@ceramicaincontro.it](mailto:info@ceramicaincontro.it) o alla PEC indicando numero d'ordine, nome e prodotti (c'è un modulo nella pagina [Diritto di recesso](/recesso)). Poi restituisci la merce entro 14 giorni dalla comunicazione, integra e nell'imballo originale."] },
-        { "q": "Chi paga la spedizione del reso?", "a": ["Il cliente."] },
+        { "q": "Chi paga la spedizione del reso?", "a": ["Nel recesso la spedizione del reso è a carico del cliente. Se il prodotto è arrivato danneggiato o non è conforme, la spedizione del reso è a carico nostro (garanzia legale). I prodotti su misura o realizzati apposta per il cliente non rientrano nel recesso."] },
         { "q": "Quando ricevo il rimborso?", "a": ["Entro 14 giorni dalla comunicazione del recesso, con lo stesso mezzo di pagamento (o con bonifico). Il rimborso comprende anche le spese di consegna standard. Possiamo attendere di ricevere la merce prima di rimborsare."] },
         { "q": "Ci sono prodotti esclusi?", "a": [
           "Sì:",

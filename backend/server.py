@@ -1787,7 +1787,11 @@ async def _withdrawal_rate_limit(request: Request):
 
 
 async def _withdrawal_order(data: WithdrawalLookupInput) -> dict:
-    o = await db.orders.find_one({"order_number": data.order_number.strip().upper()}, {"_id": 0})
+    number = data.order_number.strip().upper()
+    if number.startswith("CS-"):  # richieste di campioni: gratuiti, fuori dal recesso
+        raise HTTPException(400, "Il recesso vale per gli ordini di acquisto (numero che inizia con CI-). "
+                                 "Le richieste di campioni sono gratuite e non rientrano nel recesso.")
+    o = await db.orders.find_one({"order_number": number}, {"_id": 0})
     if not o or str(o.get("customer", {}).get("email", "")).strip().lower() != str(data.email).strip().lower():
         raise HTTPException(404, "Non troviamo un ordine con questo numero e questa email. "
                                  "Controlla i dati nell'email di conferma dell'ordine.")
@@ -1827,10 +1831,11 @@ def _withdrawal_receipt_html(order: dict, w: dict) -> str:
         '<h2 style="font-size:15px;color:#1C1917;margin:20px 0 6px">Cosa succede ora</h2>'
         '<p style="color:#57534E;font-size:14px;line-height:1.6">Ti contatteremo per concordare il ritiro o la '
         'spedizione del reso. Devi restituire i beni entro 14 giorni da oggi, integri e nell&rsquo;imballo originale; '
-        'le spese di restituzione sono a carico del cliente. Rimborsiamo i pagamenti, comprese le spese di consegna '
+        'le spese di restituzione sono a carico del cliente (se un prodotto è arrivato danneggiato o non conforme, '
+        'la spedizione del reso è a carico nostro). Rimborsiamo i pagamenti, comprese le spese di consegna '
         'standard, entro 14 giorni da oggi, con lo stesso mezzo di pagamento (o bonifico); possiamo attendere di '
         'ricevere i beni prima del rimborso. Il diritto di recesso spetta ai consumatori e non si applica ai prodotti '
-        'su misura o personalizzati.</p>'
+        'su misura o realizzati apposta per il cliente.</p>'
         f'<p style="margin:24px 0"><a href="{STORE_URL}/recesso" '
         'style="background:#C05A3E;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
         'Condizioni di recesso</a></p>'

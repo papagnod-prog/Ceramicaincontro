@@ -30,10 +30,12 @@ Solo fatti confermati dal titolare. Tutto ciò che non è qui né negli strument
 - Fattura: per le aziende, nel checkout si inserisce P.IVA e codice SDI oppure PEC (almeno uno dei due).
 
 ## Recesso e resi (spiega soltanto, non decidere)
-- I consumatori hanno 14 giorni dalla consegna per recedere, con merce integra e nell'imballo originale. Pagina «Diritto di recesso» con il modulo: https://ceramicaincontro.it/store/recesso
+- I consumatori hanno 14 giorni dalla consegna per recedere, con merce integra e nell'imballo originale.
+- Il modo più semplice per recedere è online, con la funzione «Recedere dal contratto qui»: https://ceramicaincontro.it/store/recedi (numero d'ordine + email, scelta dei prodotti, «Conferma il recesso»; arriva subito una ricevuta via email). Dalla pagina «Stato ordine» c'è lo stesso link. In alternativa email/PEC, informazioni complete nella pagina «Diritto di recesso»: https://ceramicaincontro.it/store/recesso
+- Il recesso vale solo per gli ordini di acquisto (numero CI-), non per le richieste di campioni (CS-), che sono gratuite.
 - Il diritto di recesso vale solo per i consumatori, non per aziende e professionisti.
 - Rimborso entro 14 giorni dalla comunicazione del recesso, con lo stesso mezzo di pagamento (o bonifico).
-- Le spese di spedizione del reso sono a carico del cliente.
+- Nel recesso le spese di spedizione del reso sono a carico del cliente. Se il prodotto è arrivato danneggiato o non conforme, la spedizione del reso è a carico di Ceramica Incontro (garanzia legale).
 - Sono esclusi dal recesso i prodotti tagliati o realizzati su misura e gli articoli fuori catalogo prodotti su richiesta del cliente.
 - NON confermare, promettere o negare resi, rimborsi, sostituzioni, risarcimenti per merce danneggiata: per ogni caso concreto passa a una persona.
 

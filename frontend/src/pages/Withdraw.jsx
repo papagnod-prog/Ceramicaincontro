@@ -83,7 +83,7 @@ export default function Withdraw() {
           )}
         </div>
         <p className="text-sm text-[#57534E]">
-          Ti contatteremo per il reso. Devi restituire i beni entro 14 giorni, integri e nell&rsquo;imballo originale.
+          Ti contatteremo per il reso. Devi restituire i beni entro 14 giorni, integri e nell&rsquo;imballo originale; la spedizione del reso è a carico tuo (a carico nostro solo se il prodotto è arrivato danneggiato o non conforme).
           Dettagli nella pagina <Link to="/recesso" className="text-[#C05A3E] underline">Diritto di recesso</Link>.
         </p>
       </div>
@@ -110,7 +110,10 @@ export default function Withdraw() {
             <label htmlFor="w-order" className="block text-xs font-medium text-[#57534E] mb-1.5">Numero d&rsquo;ordine</label>
             <input id="w-order" required value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)}
               placeholder="Es. CI-261016-AB12CD" className={inputCls} autoComplete="off" data-testid="withdraw-order-number" />
-            <p className="text-xs text-[#78716C] mt-1">Lo trovi nell&rsquo;email di conferma dell&rsquo;ordine.</p>
+            <p className="text-xs text-[#78716C] mt-1">
+              Lo trovi nell&rsquo;email di conferma dell&rsquo;ordine (inizia con CI-). Il recesso vale per gli ordini di acquisto,
+              non per le richieste di campioni, che sono gratuite.
+            </p>
           </div>
           <div>
             <label htmlFor="w-email" className="block text-xs font-medium text-[#57534E] mb-1.5">Email usata per l&rsquo;ordine</label>
