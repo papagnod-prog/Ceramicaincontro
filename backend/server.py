@@ -428,6 +428,86 @@ def _admin_notify_email_html(title: str, rows: list) -> str:
     return _brand_wrap(inner)
 
 
+def _admin_order_email_html(order: dict) -> str:
+    """Avviso all'amministratore per un nuovo ordine (bonifico appena inviato o carta pagata)."""
+    def row(k, v, bold=False):
+        w = "font-weight:bold;" if bold else ""
+        return (f'<tr><td style="padding:6px 0;color:#78716C;vertical-align:top">{escape(str(k))}</td>'
+                f'<td style="padding:6px 0;text-align:right;color:#1C1917;{w}">{escape(str(v))}</td></tr>')
+
+    def table(rows_html):
+        return f'<table role="presentation" width="100%" style="font-size:14px;margin:0 0 16px">{rows_html}</table>'
+
+    def h2(t):
+        return f'<h2 style="font-size:15px;color:#1C1917;margin:20px 0 6px;border-bottom:1px solid #E2DDD5;padding-bottom:4px">{escape(t)}</h2>'
+
+    cust = order.get("customer", {}) or {}
+    bill = order.get("billing", {}) or {}
+    addr = order.get("shipping_address", {}) or {}
+    ship = order.get("shipping_option", {}) or {}
+    method = order.get("payment_method", "card")
+    pay_label = "Carta (pagamento confermato)" if method == "card" else "Bonifico (in attesa dell'accredito)"
+    try:
+        from zoneinfo import ZoneInfo
+        created = datetime.fromisoformat(str(order.get("created_at"))).astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        created = str(order.get("created_at", ""))[:16].replace("T", " ")
+
+    head = (row("Numero ordine", order.get("order_number", ""), True)
+            + (row("Data", created) if created else "")
+            + row("Pagamento", pay_label)
+            + row("Totale", f"€ {order.get('total', 0):.2f}", True))
+
+    client = row("Nome", cust.get("name", "")) + row("Email", cust.get("email", ""))
+    if cust.get("phone"):
+        client += row("Telefono", cust["phone"])
+
+    if bill.get("is_business"):
+        fatt = row("Tipo", "Azienda") + row("Ragione sociale", bill.get("company", "")) + row("Partita IVA", bill.get("vat_number", ""))
+        if bill.get("codice_fiscale"):
+            fatt += row("Codice fiscale", bill["codice_fiscale"])
+        fatt += row("Codice SDI", bill.get("sdi_code") or "—") + row("PEC", bill.get("pec_address") or "—")
+    else:
+        fatt = row("Tipo", "Privato") + row("Codice fiscale", bill.get("codice_fiscale") or "—")
+
+    place = " ".join(x for x in [str(addr.get("postal_code", "")), str(addr.get("city", "")),
+                                 f"({addr['province']})" if addr.get("province") else ""] if x)
+    dest = (row("Indirizzo", addr.get("line1", "")) + row("Località", place)
+            + (row("Regione", addr["region"]) if addr.get("region") else "")
+            + row("Metodo", ship.get("name", "")))
+
+    items = "".join(row(f"{it.get('name', '')} × {it.get('quantity', 0)}",
+                        f"€ {float(it.get('price', 0)) * int(it.get('quantity', 0)):.2f}")
+                    for it in order.get("items", []))
+    items += row("Subtotale (IVA esclusa)", f"€ {order.get('subtotal', 0):.2f}")
+    items += row("Spedizione", f"€ {order.get('shipping_cost', 0):.2f}")
+    if order.get("vat_amount_total", 0) > 0:
+        items += row("IVA", f"€ {order.get('vat_amount_total', 0):.2f}")
+    items += row("Totale", f"€ {order.get('total', 0):.2f}", True)
+
+    admin_url = f"{STORE_URL}/admin/ordini/{order['id']}"
+    inner = (f'<h1 style="font-size:20px;color:#1C1917;margin:0 0 12px">Nuovo ordine {escape(str(order.get("order_number", "")))}</h1>'
+             + table(head)
+             + h2("Cliente") + table(client)
+             + h2("Dati per la fattura") + table(fatt)
+             + h2("Spedizione") + table(dest)
+             + h2("Prodotti") + table(items)
+             + f'<p style="margin:24px 0"><a href="{admin_url}" '
+               'style="background:#C05A3E;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
+               'Apri l&rsquo;ordine nel pannello</a></p>')
+    return _brand_wrap(inner)
+
+
+async def _notify_admin_new_order(order: dict):
+    admin = os.environ.get("ADMIN_EMAIL")
+    if not admin:
+        return
+    method = "Carta" if order.get("payment_method", "card") == "card" else "Bonifico"
+    await _safe_send(admin,
+                     f"Nuovo ordine {order.get('order_number', '')} — € {order.get('total', 0):.2f} ({method})",
+                     _admin_order_email_html(order))
+
+
 async def _safe_send(to: str, subject: str, html: str):
     try:
         await send_email(to=to, subject=subject, html=html)
@@ -1286,6 +1366,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
         await _safe_send(data.customer.email,
                          f"Ordine confermato {order_number} — Ceramica Incontro",
                          await _order_email_html(order))
+        await _notify_admin_new_order(order)
 
     return {"checkout_url": f"{_safe_origin(data.origin_url)}/payment/confirmation?order={order_number}&method={payment_method}",
             "session_id": None, "order_number": order_number, "payment_method": payment_method}
@@ -1330,6 +1411,7 @@ async def _mark_paid(session_id: str, payment_intent=None):
             await _safe_send(order["customer"]["email"],
                              f"Ordine confermato {order['order_number']} — Ceramica Incontro",
                              await _order_email_html(order))
+            await _notify_admin_new_order(order)
 
 
 @api_router.get("/payments/config")
