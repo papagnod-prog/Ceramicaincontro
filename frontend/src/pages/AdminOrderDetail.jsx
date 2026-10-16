@@ -6,6 +6,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { paymentLabel } from "@/lib/payment";
 
 const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "cancelled", "refunded"];
 const STATUS_LABEL = {
@@ -75,7 +76,7 @@ export default function AdminOrderDetail() {
           </div>
           <div className="text-right">
             <div className="text-sm font-medium">{STATUS_LABEL[order.status] || order.status}</div>
-            <div className="text-xs text-[#78716C]">{order.payment_method === "bank_transfer" ? "Bonifico bancario" : "Carta"} · {order.payment_status}</div>
+            <div className="text-xs text-[#78716C]">{paymentLabel(order)}</div>
           </div>
         </div>
 
@@ -114,6 +115,22 @@ export default function AdminOrderDetail() {
             {order.tracking && <p className="text-sm text-[#57534E]">Tracking: <strong>{order.tracking}</strong></p>}
           </div>
         </div>
+
+        {(order.withdrawals || []).length > 0 && (
+          <div className="mb-6 border border-[#C05A3E] bg-[#FBEAE5] p-4" data-testid="admin-order-withdrawals">
+            <h2 className="text-xs uppercase tracking-wide text-[#A64B32] mb-2 font-medium">Recesso richiesto dal cliente</h2>
+            {order.withdrawals.map((w) => (
+              <div key={w.id} className="text-sm text-[#1C1917] mb-2 last:mb-0">
+                <p><strong>{w.request_number}</strong> · ricevuta il {new Date(w.received_at).toLocaleString("it-IT")}</p>
+                <ul className="list-disc pl-5 text-[#57534E]">
+                  {(w.items || []).map((it, i) => (<li key={i}>{it.name} × {it.quantity}{it.ordered_quantity ? ` (su ${it.ordered_quantity})` : ""}</li>))}
+                </ul>
+                {w.note && <p className="text-[#57534E]">Nota: {w.note}</p>}
+              </div>
+            ))}
+            {billing.is_business && <p className="text-xs text-[#A64B32] mt-2">Cliente azienda: per legge il recesso spetta solo ai consumatori.</p>}
+          </div>
+        )}
 
         <h2 className="text-xs uppercase tracking-wide text-[#78716C] mb-2">Articoli — per la preparazione</h2>
         <table className="w-full text-sm mb-6 border border-[#E2DDD5]">

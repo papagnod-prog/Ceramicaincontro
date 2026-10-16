@@ -71,6 +71,7 @@ export const Footer = () => (
           <Link to="/cookie" className="hover:text-white underline">Cookie</Link>
           <Link to="/condizioni-di-vendita" className="hover:text-white underline">Condizioni di vendita</Link>
           <Link to="/recesso" className="hover:text-white underline">Diritto di recesso</Link>
+          <Link to="/recedi" data-testid="footer-withdraw-link" className="hover:text-white underline font-medium">Recedere dal contratto qui</Link>
           <Link to="/note-legali" className="hover:text-white underline">Note legali</Link>
           <Link to="/accessibilita" className="hover:text-white underline">Accessibilità</Link>
           <Link to="/assistente-ia" className="hover:text-white underline">Assistente IA</Link>

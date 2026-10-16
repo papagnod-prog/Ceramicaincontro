@@ -428,8 +428,64 @@ def _admin_notify_email_html(title: str, rows: list) -> str:
     return _brand_wrap(inner)
 
 
-def _admin_order_email_html(order: dict) -> str:
-    """Avviso all'amministratore per un nuovo ordine (bonifico appena inviato o carta pagata)."""
+# ---------------------------------------------------------------------------
+# Avvisi all'amministratore (ordini, recessi, campioni, preventivi, assistente)
+# ---------------------------------------------------------------------------
+ADMIN_NOTIFY_EMAIL = "contatto@ceramicaincontro.it"
+
+# kind -> (titolo nell'email, oggetto, nota per l'amministratore)
+ORDER_NOTICES = {
+    "new_card": ("Nuovo ordine – in attesa di pagamento con carta",
+                 "Nuovo ordine {n} — € {t} (carta, in attesa di pagamento)",
+                 "Il cliente è stato mandato alla pagina di pagamento con carta (Stripe). "
+                 "Riceverai un'altra email quando il pagamento è confermato, oppure se non viene completato."),
+    "new_transfer": ("Nuovo ordine – in attesa di bonifico",
+                     "Nuovo ordine {n} — € {t} (bonifico, in attesa di accredito)",
+                     "Il cliente ha ricevuto i dati per il bonifico. Quando arriva l'accredito, metti l'ordine "
+                     "\"In lavorazione\" nel pannello: vale come pagamento ricevuto."),
+    "paid_card": ("Pagamento ricevuto – carta",
+                  "Pagamento ricevuto {n} — € {t} (carta)",
+                  "Stripe ha confermato il pagamento. Il cliente ha ricevuto l'email di conferma dell'ordine."),
+    "paid_transfer": ("Pagamento ricevuto – bonifico",
+                      "Pagamento ricevuto {n} — € {t} (bonifico)",
+                      "L'ordine è stato messo \"{status}\" nel pannello, quindi il bonifico risulta ricevuto."),
+    "unpaid_card": ("Ordine non pagato – carta",
+                    "Ordine non pagato {n} — € {t} (carta)",
+                    "Il cliente non ha completato il pagamento con carta e la sessione di pagamento è scaduta. "
+                    "L'ordine risulta annullato; non è stato addebitato nulla."),
+    "unpaid_transfer": ("Ordine non pagato – bonifico",
+                        "Ordine non pagato {n} — € {t} (bonifico, 5 giorni lavorativi)",
+                        "Sono passati 5 giorni lavorativi e l'ordine non è stato segnato come pagato. "
+                        "Al cliente è stato mandato un promemoria con i dati del bonifico. "
+                        "L'ordine NON è stato annullato: se serve, annullalo tu dal pannello."),
+    "withdrawal": ("Richiesta di recesso",
+                   "Richiesta di recesso {n} — {r}",
+                   "Il cliente ha usato la funzione \"Recedere dal contratto qui\" del negozio e ha ricevuto la "
+                   "ricevuta via email. Verifica i tempi (14 giorni dalla consegna) e concorda il reso."),
+}
+
+_PAY_STATUS_IT = {
+    ("card", "pending"): "Carta – in attesa di pagamento",
+    ("card", "paid"): "Carta – pagato",
+    ("card", "expired"): "Carta – pagamento non completato",
+    ("card", "refunded"): "Carta – rimborsato",
+    ("bank_transfer", "awaiting_transfer"): "Bonifico – in attesa dell'accredito",
+    ("bank_transfer", "paid"): "Bonifico – ricevuto",
+}
+
+
+def _rome_time(iso) -> str:
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.fromisoformat(str(iso)).astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(iso or "")[:16].replace("T", " ")
+
+
+def _admin_order_email_html(order: dict, kind: str = "new_transfer", extra_title: str = "",
+                            extra_rows: Optional[list] = None, warning: str = "") -> str:
+    """Email per l'amministratore su un ordine: stesso schema per nuovo ordine, pagamento,
+    mancato pagamento e recesso, con tutti i dati del cliente (privato o azienda)."""
     def row(k, v, bold=False):
         w = "font-weight:bold;" if bold else ""
         return (f'<tr><td style="padding:6px 0;color:#78716C;vertical-align:top">{escape(str(k))}</td>'
@@ -441,20 +497,19 @@ def _admin_order_email_html(order: dict) -> str:
     def h2(t):
         return f'<h2 style="font-size:15px;color:#1C1917;margin:20px 0 6px;border-bottom:1px solid #E2DDD5;padding-bottom:4px">{escape(t)}</h2>'
 
+    title, _subject, note = ORDER_NOTICES.get(kind, ORDER_NOTICES["new_transfer"])
+    note = note.replace("{status}", ORDER_STATUS_LABEL_IT.get(order.get("status", ""), order.get("status", "")))
     cust = order.get("customer", {}) or {}
     bill = order.get("billing", {}) or {}
     addr = order.get("shipping_address", {}) or {}
     ship = order.get("shipping_option", {}) or {}
     method = order.get("payment_method", "card")
-    pay_label = "Carta (pagamento confermato)" if method == "card" else "Bonifico (in attesa dell'accredito)"
-    try:
-        from zoneinfo import ZoneInfo
-        created = datetime.fromisoformat(str(order.get("created_at"))).astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y %H:%M")
-    except Exception:
-        created = str(order.get("created_at", ""))[:16].replace("T", " ")
+    pay_label = _PAY_STATUS_IT.get((method, order.get("payment_status")),
+                                   ("Carta" if method == "card" else "Bonifico") + f" – {order.get('payment_status', '')}")
 
     head = (row("Numero ordine", order.get("order_number", ""), True)
-            + (row("Data", created) if created else "")
+            + row("Data ordine", _rome_time(order.get("created_at")))
+            + row("Stato", ORDER_STATUS_LABEL_IT.get(order.get("status", ""), order.get("status", "")))
             + row("Pagamento", pay_label)
             + row("Totale", f"€ {order.get('total', 0):.2f}", True))
 
@@ -475,6 +530,8 @@ def _admin_order_email_html(order: dict) -> str:
     dest = (row("Indirizzo", addr.get("line1", "")) + row("Località", place)
             + (row("Regione", addr["region"]) if addr.get("region") else "")
             + row("Metodo", ship.get("name", "")))
+    if order.get("tracking"):
+        dest += row("Tracking", order["tracking"])
 
     items = "".join(row(f"{it.get('name', '')} × {it.get('quantity', 0)}",
                         f"€ {float(it.get('price', 0)) * int(it.get('quantity', 0)):.2f}")
@@ -485,9 +542,14 @@ def _admin_order_email_html(order: dict) -> str:
         items += row("IVA", f"€ {order.get('vat_amount_total', 0):.2f}")
     items += row("Totale", f"€ {order.get('total', 0):.2f}", True)
 
+    warn_html = (f'<p style="background:#FBEAE5;color:#A64B32;font-size:14px;padding:10px 12px;margin:0 0 16px">'
+                 f'{escape(warning)}</p>') if warning else ""
+    extra_html = (h2(extra_title or "Dettagli") + table("".join(row(k, v) for k, v in extra_rows))) if extra_rows else ""
     admin_url = f"{STORE_URL}/admin/ordini/{order['id']}"
-    inner = (f'<h1 style="font-size:20px;color:#1C1917;margin:0 0 12px">Nuovo ordine {escape(str(order.get("order_number", "")))}</h1>'
-             + table(head)
+    inner = (f'<h1 style="font-size:20px;color:#1C1917;margin:0 0 8px">{escape(title)}</h1>'
+             f'<p style="color:#57534E;font-size:14px;line-height:1.6;margin:0 0 16px">{escape(note)}</p>'
+             + warn_html + extra_html
+             + h2("Ordine") + table(head)
              + h2("Cliente") + table(client)
              + h2("Dati per la fattura") + table(fatt)
              + h2("Spedizione") + table(dest)
@@ -498,14 +560,24 @@ def _admin_order_email_html(order: dict) -> str:
     return _brand_wrap(inner)
 
 
-async def _notify_admin_new_order(order: dict):
-    admin = os.environ.get("ADMIN_EMAIL")
-    if not admin:
-        return
-    method = "Carta" if order.get("payment_method", "card") == "card" else "Bonifico"
-    await _safe_send(admin,
-                     f"Nuovo ordine {order.get('order_number', '')} — € {order.get('total', 0):.2f} ({method})",
-                     _admin_order_email_html(order))
+async def _notify_admin_order(order: dict, kind: str, *, once: bool = True, request_number: str = "",
+                              extra_title: str = "", extra_rows: Optional[list] = None, warning: str = "") -> bool:
+    """Manda l'avviso `kind` all'amministratore. Con once=True parte una sola volta per ordine
+    (segno messo in order.admin_notified prima dell'invio, così due eventi uguali non duplicano)."""
+    if once:
+        res = await db.orders.update_one(
+            {"id": order["id"], f"admin_notified.{kind}": {"$exists": False}},
+            {"$set": {f"admin_notified.{kind}": now_utc().isoformat()}})
+        if not res.modified_count:
+            return False
+    _title, subject, _note = ORDER_NOTICES[kind]
+    subject = (subject.replace("{n}", str(order.get("order_number", "")))
+                      .replace("{t}", f"{order.get('total', 0):.2f}")
+                      .replace("{r}", request_number))
+    await _safe_send(ADMIN_NOTIFY_EMAIL, subject,
+                     _admin_order_email_html(order, kind, extra_title=extra_title,
+                                             extra_rows=extra_rows, warning=warning))
+    return True
 
 
 async def _safe_send(to: str, subject: str, html: str):
@@ -1349,6 +1421,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
             "session_id": session.id, "order_id": order_id, "user_id": user["id"] if user else None,
             "amount": total, "currency": "eur", "status": "initiated", "payment_status": "pending",
             "created_at": now_utc(), "updated_at": now_utc()})
+        await _notify_admin_order(order, "new_card")
 
         return {"checkout_url": session.url, "session_id": session.id, "order_number": order_number,
                 "payment_method": payment_method}
@@ -1366,7 +1439,7 @@ async def create_checkout(data: CheckoutInput, request: Request):
         await _safe_send(data.customer.email,
                          f"Ordine confermato {order_number} — Ceramica Incontro",
                          await _order_email_html(order))
-        await _notify_admin_new_order(order)
+    await _notify_admin_order(order, "new_transfer")
 
     return {"checkout_url": f"{_safe_origin(data.origin_url)}/payment/confirmation?order={order_number}&method={payment_method}",
             "session_id": None, "order_number": order_number, "payment_method": payment_method}
@@ -1390,8 +1463,8 @@ async def _mark_paid(session_id: str, payment_intent=None):
                 await _safe_send(req["customer"]["email"],
                                  f"Richiesta campioni confermata {req['request_number']} — Ceramica Incontro",
                                  await _sample_email_html(req))
-                if os.environ.get("ADMIN_EMAIL"):
-                    await _safe_send(os.environ["ADMIN_EMAIL"],
+                if ADMIN_NOTIFY_EMAIL:
+                    await _safe_send(ADMIN_NOTIFY_EMAIL,
                                      f"Nuova richiesta campioni {req['request_number']}",
                                      _admin_notify_email_html("Nuova richiesta campioni (pagata)", [
                                          ("Numero", req["request_number"]), ("Cliente", req["customer"]["name"]),
@@ -1411,7 +1484,137 @@ async def _mark_paid(session_id: str, payment_intent=None):
             await _safe_send(order["customer"]["email"],
                              f"Ordine confermato {order['order_number']} — Ceramica Incontro",
                              await _order_email_html(order))
-            await _notify_admin_new_order(order)
+        if order:
+            await _notify_admin_order(order, "paid_card")
+
+
+async def _mark_card_expired(session_id: str):
+    """Sessione di pagamento Stripe scaduta senza pagamento: ordine annullato + avviso admin."""
+    await db.orders.update_one({"session_id": session_id, "payment_status": {"$ne": "paid"}},
+                               {"$set": {"status": "cancelled", "payment_status": "expired",
+                                         "updated_at": now_utc().isoformat()}})
+    await db.payment_transactions.update_one({"session_id": session_id, "payment_status": {"$ne": "paid"}},
+                                             {"$set": {"status": "expired", "payment_status": "expired",
+                                                       "updated_at": now_utc()}})
+    order = await db.orders.find_one({"session_id": session_id}, {"_id": 0})
+    if order and order.get("payment_status") == "expired":
+        await _notify_admin_order(order, "unpaid_card")
+
+
+# ---------------------------------------------------------------------------
+# Controllo periodico dei pagamenti non arrivati (bonifico dopo 5 giorni lavorativi,
+# carta con sessione Stripe scaduta). Gira all'avvio e poi ogni ora finché il server è acceso.
+# ---------------------------------------------------------------------------
+TRANSFER_WORKING_DAYS = 5
+PAYMENT_WATCH_INTERVAL_S = 3600
+
+
+def _easter(year: int):
+    a, b, c = year % 19, year // 100, year % 100
+    d, e = b // 4, b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return datetime(year, month, day).date()
+
+
+def _is_working_day(d) -> bool:
+    if d.weekday() >= 5:
+        return False
+    fixed = {(1, 1), (1, 6), (4, 25), (5, 1), (6, 2), (8, 15), (11, 1), (12, 8), (12, 25), (12, 26)}
+    if (d.month, d.day) in fixed:
+        return False
+    return d != _easter(d.year) + timedelta(days=1)  # Lunedì dell'Angelo
+
+
+def _add_working_days(start: datetime, n: int) -> datetime:
+    """start + n giorni lavorativi (lun-ven, escluse le festività nazionali), stessa ora del giorno."""
+    from zoneinfo import ZoneInfo
+    local = start.astimezone(ZoneInfo("Europe/Rome"))
+    added = 0
+    while added < n:
+        local = local + timedelta(days=1)
+        if _is_working_day(local.date()):
+            added += 1
+    return local.astimezone(timezone.utc)
+
+
+async def _transfer_reminder_email_html(order: dict) -> str:
+    pay = await get_payment_settings()
+    n = escape(str(order["order_number"]))
+    inner = (
+        f'<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Promemoria: ordine in attesa di bonifico</h1>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(order.get("customer", {}).get("name", "")))}, '
+        f'non risulta ancora arrivato il bonifico per l&rsquo;ordine <strong>{n}</strong> '
+        f'(totale <strong>&euro; {order.get("total", 0):.2f}</strong>). Ti ricordiamo i dati per il pagamento:</p>'
+        f'<table role="presentation" width="100%" style="margin:16px 0;font-size:14px;background:#F8F6F2;padding:12px">'
+        f'<tr><td style="padding:4px 0;color:#78716C">Beneficiario</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_holder"])}</td></tr>'
+        f'<tr><td style="padding:4px 0;color:#78716C">IBAN</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_iban"])}</td></tr>'
+        + (f'<tr><td style="padding:4px 0;color:#78716C">BIC/SWIFT</td><td style="padding:4px 0;text-align:right;color:#1C1917">{escape(pay["bank_transfer_bic"])}</td></tr>' if pay["bank_transfer_bic"] else "")
+        + f'<tr><td style="padding:4px 0;color:#78716C">Importo</td><td style="padding:4px 0;text-align:right;color:#1C1917">&euro; {order.get("total", 0):.2f}</td></tr>'
+        f'<tr><td style="padding:4px 0;color:#78716C">Causale</td><td style="padding:4px 0;text-align:right;color:#1C1917">{n}</td></tr>'
+        f'</table>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Se hai gi&agrave; fatto il bonifico, non serve fare nulla: '
+        f'l&rsquo;accredito pu&ograve; richiedere qualche giorno. Senza pagamento l&rsquo;ordine pu&ograve; essere annullato. '
+        f'Per qualsiasi dubbio rispondi a questa email.</p>'
+        f'<p style="margin:24px 0"><a href="{_order_track_url(order)}" '
+        f'style="background:#C05A3E;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
+        f'Vedi lo stato dell&rsquo;ordine</a></p>')
+    return _brand_wrap(inner)
+
+
+async def _check_unpaid_orders():
+    now = now_utc()
+    # Bonifici: solo ordini creati con questa funzione attiva (hanno già avuto l'avviso "new_transfer").
+    cursor = db.orders.find({"payment_method": "bank_transfer", "payment_status": "awaiting_transfer",
+                             "status": "pending", "admin_notified.new_transfer": {"$exists": True},
+                             "admin_notified.unpaid_transfer": {"$exists": False}}, {"_id": 0})
+    async for o in cursor:
+        try:
+            due = _add_working_days(datetime.fromisoformat(o["created_at"]), TRANSFER_WORKING_DAYS)
+        except Exception:
+            continue
+        if due > now:
+            continue
+        if await _notify_admin_order(o, "unpaid_transfer"):
+            await _safe_send(o["customer"]["email"],
+                             f"Promemoria bonifico — ordine {o['order_number']} — Ceramica Incontro",
+                             await _transfer_reminder_email_html(o))
+    # Carta: sessione Stripe ancora "in attesa" dopo 24 ore -> chiedo a Stripe com'è finita
+    # (rimedia anche a un webhook non arrivato).
+    if not STRIPE_ENABLED:
+        return
+    cutoff = now - timedelta(hours=25)
+    cursor = db.orders.find({"payment_method": "card", "payment_status": "pending", "status": "pending",
+                             "session_id": {"$ne": None}, "admin_notified.new_card": {"$exists": True},
+                             "admin_notified.unpaid_card": {"$exists": False}}, {"_id": 0})
+    async for o in cursor:
+        try:
+            if datetime.fromisoformat(o["created_at"]) > cutoff:
+                continue
+            sess = await asyncio.to_thread(stripe.checkout.Session.retrieve, o["session_id"])
+        except Exception as e:
+            logger.warning(f"Controllo pagamento {o.get('order_number')}: {e}")
+            continue
+        if sess.payment_status == "paid" or sess.status == "complete":
+            await _mark_paid(o["session_id"], sess.payment_intent)
+        elif sess.status == "expired":
+            await _mark_card_expired(o["session_id"])
+
+
+async def _payment_watch_loop():
+    await asyncio.sleep(60)
+    while True:
+        try:
+            await _check_unpaid_orders()
+        except Exception as e:
+            logger.error(f"Controllo pagamenti non riuscito: {e}")
+        await asyncio.sleep(PAYMENT_WATCH_INTERVAL_S)
 
 
 @api_router.get("/payments/config")
@@ -1452,8 +1655,7 @@ async def stripe_webhook(request: Request):
     if t == "checkout.session.completed":
         await _mark_paid(obj["id"], obj.get("payment_intent"))
     elif t == "checkout.session.expired":
-        await db.orders.update_one({"session_id": obj["id"]},
-                                   {"$set": {"status": "cancelled", "payment_status": "expired"}})
+        await _mark_card_expired(obj["id"])
         await db.sample_requests.update_one({"session_id": obj["id"]},
                                    {"$set": {"status": "cancelled", "payment_status": "expired"}})
     elif t == "charge.refunded":
@@ -1530,6 +1732,17 @@ async def update_order_status(order_id: str, data: OrderStatusInput, admin: dict
         {"$set": {"status": data.status, "tracking": data.tracking, "updated_at": now_utc().isoformat()}})
     if res.matched_count == 0:
         raise HTTPException(404, "Ordine non trovato")
+    # Bonifico: quando l'amministratore mette l'ordine "In lavorazione" (o spedito/consegnato)
+    # il bonifico vale come ricevuto -> pagamento segnato "paid" + avviso "Pagamento ricevuto".
+    if (data.status in ("processing", "shipped", "delivered")
+            and before.get("payment_method") == "bank_transfer"
+            and before.get("payment_status") == "awaiting_transfer"):
+        paid = await db.orders.update_one(
+            {"id": order_id, "payment_status": "awaiting_transfer"},
+            {"$set": {"payment_status": "paid", "paid_at": now_utc().isoformat()}})
+        if paid.modified_count:
+            order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+            await _notify_admin_order(order, "paid_transfer")
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     # Notify the customer by email on every status change, with a link to the public
     # order-tracking page (no login required).
@@ -1539,6 +1752,162 @@ async def update_order_status(order_id: str, data: OrderStatusInput, admin: dict
                          f"Ordine {order['order_number']} — {label} — Ceramica Incontro",
                          _order_status_email_html(order))
     return order
+
+
+# ---------------------------------------------------------------------------
+# Recesso online ("Recedere dal contratto qui") — Direttiva (UE) 2023/2673, art. 11 bis
+# Passo 1: numero ordine + email -> prodotti dell'ordine. Passo 2: "Conferma il recesso"
+# -> richiesta salvata, ricevuta al cliente (data/ora, contenuto) e avviso all'amministratore.
+# ---------------------------------------------------------------------------
+WITHDRAWAL_RL_MAX = 15  # tentativi per IP all'ora (anti abuso/indovinare numeri ordine)
+PUBLIC_CONTACT_EMAIL = "info@ceramicaincontro.it"  # indirizzo mostrato ai clienti
+
+
+class WithdrawalLookupInput(BaseModel):
+    order_number: str = Field(min_length=3, max_length=40)
+    email: EmailStr
+
+
+class WithdrawalItemInput(BaseModel):
+    index: int = Field(ge=0, le=500)
+    quantity: int = Field(ge=1, le=100000)
+
+
+class WithdrawalInput(WithdrawalLookupInput):
+    items: List[WithdrawalItemInput] = Field(min_length=1, max_length=200)
+    note: Optional[str] = Field(default="", max_length=1000)
+
+
+async def _withdrawal_rate_limit(request: Request):
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "") or "").split(",")[0].strip()
+    since = now_utc() - timedelta(hours=1)
+    if await db.withdrawal_rl.count_documents({"ip": ip, "at": {"$gte": since}}) >= WITHDRAWAL_RL_MAX:
+        raise HTTPException(429, "Troppi tentativi. Riprova tra un'ora oppure scrivici a " + PUBLIC_CONTACT_EMAIL + ".")
+    await db.withdrawal_rl.insert_one({"ip": ip, "at": now_utc()})
+
+
+async def _withdrawal_order(data: WithdrawalLookupInput) -> dict:
+    o = await db.orders.find_one({"order_number": data.order_number.strip().upper()}, {"_id": 0})
+    if not o or str(o.get("customer", {}).get("email", "")).strip().lower() != str(data.email).strip().lower():
+        raise HTTPException(404, "Non troviamo un ordine con questo numero e questa email. "
+                                 "Controlla i dati nell'email di conferma dell'ordine.")
+    if o.get("status") in ("cancelled", "refunded"):
+        raise HTTPException(400, "Questo ordine risulta già " +
+                            ORDER_STATUS_LABEL_IT.get(o["status"], o["status"]).lower() +
+                            ". Per dubbi scrivici a " + PUBLIC_CONTACT_EMAIL + ".")
+    return o
+
+
+def _withdrawal_receipt_html(order: dict, w: dict) -> str:
+    rows = "".join(
+        f'<tr><td style="padding:6px 0;color:#1C1917">{escape(str(it["name"]))}</td>'
+        f'<td style="padding:6px 0;text-align:right;color:#1C1917">× {int(it["quantity"])}</td></tr>'
+        for it in w["items"])
+    def kv(k, v):
+        return (f'<tr><td style="padding:4px 0;color:#78716C">{escape(k)}</td>'
+                f'<td style="padding:4px 0;text-align:right;color:#1C1917">{escape(str(v))}</td></tr>')
+    note = (f'<p style="color:#57534E;font-size:14px;line-height:1.6"><strong>Tua nota:</strong> {escape(w["note"])}</p>'
+            if w.get("note") else "")
+    inner = (
+        '<h1 style="font-size:22px;color:#1C1917;margin:0 0 8px">Ricevuta della richiesta di recesso</h1>'
+        f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(order.get("customer", {}).get("name", "")))}, '
+        'abbiamo ricevuto la tua dichiarazione di recesso dal contratto. Conserva questa email: è la ricevuta, '
+        'con il contenuto e la data e ora in cui l&rsquo;abbiamo ricevuta.</p>'
+        '<table role="presentation" width="100%" style="margin:16px 0;font-size:14px;background:#F8F6F2;padding:12px">'
+        + kv("Numero richiesta", w["request_number"])
+        + kv("Ricevuta il", w["received_at_local"] + " (ora italiana)")
+        + kv("Numero ordine", order["order_number"])
+        + kv("Data ordine", _rome_time(order.get("created_at")))
+        + kv("Nome", order.get("customer", {}).get("name", ""))
+        + kv("Email", order.get("customer", {}).get("email", ""))
+        + '</table>'
+        '<h2 style="font-size:15px;color:#1C1917;margin:20px 0 6px">Prodotti per cui recedi</h2>'
+        f'<table role="presentation" width="100%" style="font-size:14px;margin:0 0 16px">{rows}</table>'
+        + note +
+        '<h2 style="font-size:15px;color:#1C1917;margin:20px 0 6px">Cosa succede ora</h2>'
+        '<p style="color:#57534E;font-size:14px;line-height:1.6">Ti contatteremo per concordare il ritiro o la '
+        'spedizione del reso. Devi restituire i beni entro 14 giorni da oggi, integri e nell&rsquo;imballo originale; '
+        'le spese di restituzione sono a carico del cliente. Rimborsiamo i pagamenti, comprese le spese di consegna '
+        'standard, entro 14 giorni da oggi, con lo stesso mezzo di pagamento (o bonifico); possiamo attendere di '
+        'ricevere i beni prima del rimborso. Il diritto di recesso spetta ai consumatori e non si applica ai prodotti '
+        'su misura o personalizzati.</p>'
+        f'<p style="margin:24px 0"><a href="{STORE_URL}/recesso" '
+        'style="background:#C05A3E;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
+        'Condizioni di recesso</a></p>'
+        '<p style="color:#78716C;font-size:13px;line-height:1.6">Per qualsiasi dubbio rispondi a questa email.</p>')
+    return _brand_wrap(inner)
+
+
+@api_router.post("/withdrawals/lookup")
+async def withdrawal_lookup(data: WithdrawalLookupInput, request: Request):
+    await _withdrawal_rate_limit(request)
+    o = await _withdrawal_order(data)
+    return {
+        "order_number": o["order_number"],
+        "created_at": o.get("created_at"),
+        "status_label": ORDER_STATUS_LABEL_IT.get(o.get("status", "pending"), o.get("status")),
+        "customer_name": o.get("customer", {}).get("name", ""),
+        "is_business": bool((o.get("billing") or {}).get("is_business")),
+        "items": [{"index": i, "name": it.get("name"), "quantity": it.get("quantity"), "image": it.get("image")}
+                  for i, it in enumerate(o.get("items", []))],
+        "previous_requests": [{"request_number": w.get("request_number"), "received_at": w.get("received_at")}
+                              for w in (o.get("withdrawals") or [])],
+    }
+
+
+@api_router.post("/withdrawals")
+async def create_withdrawal(data: WithdrawalInput, request: Request):
+    await _withdrawal_rate_limit(request)
+    o = await _withdrawal_order(data)
+    order_items = o.get("items", [])
+    chosen, seen = [], set()
+    for it in data.items:
+        if it.index in seen:
+            continue
+        seen.add(it.index)
+        if it.index >= len(order_items):
+            raise HTTPException(400, "Prodotto non presente nell'ordine")
+        src = order_items[it.index]
+        if it.quantity > int(src.get("quantity", 0)):
+            raise HTTPException(400, f"Quantità non valida per {src.get('name')}")
+        chosen.append({"index": it.index, "product_id": src.get("product_id"), "name": src.get("name"),
+                       "quantity": it.quantity, "ordered_quantity": int(src.get("quantity", 0))})
+    received = now_utc()
+    wid = str(uuid.uuid4())
+    w = {"id": wid,
+         "request_number": "RC-" + datetime.now().strftime("%y%m%d") + "-" + wid[:6].upper(),
+         "order_id": o["id"], "order_number": o["order_number"],
+         "customer": {"name": o.get("customer", {}).get("name", ""), "email": o.get("customer", {}).get("email", "")},
+         "items": chosen, "note": (data.note or "").strip(),
+         "received_at": received.isoformat(), "received_at_local": _rome_time(received.isoformat()),
+         "source": "online_form", "consent": _consent_record(request, ["withdrawal"]),
+         "receipt_sent": False}
+    await db.withdrawals.insert_one(dict(w))
+    await db.orders.update_one({"id": o["id"]}, {"$push": {"withdrawals": {
+        k: w[k] for k in ("id", "request_number", "items", "note", "received_at")}},
+        "$set": {"updated_at": received.isoformat()}})
+    try:
+        await send_email(to=w["customer"]["email"],
+                         subject=f"Ricevuta recesso {w['request_number']} — ordine {o['order_number']} — Ceramica Incontro",
+                         html=_withdrawal_receipt_html(o, w))
+        await db.withdrawals.update_one({"id": wid}, {"$set": {"receipt_sent": True}})
+        w["receipt_sent"] = True
+    except Exception as e:
+        logger.error(f"Ricevuta recesso non inviata a {w['customer']['email']}: {e}")
+    warning = ("Cliente con dati da AZIENDA: per legge il recesso spetta solo ai consumatori."
+               if (o.get("billing") or {}).get("is_business") else "")
+    if not w["receipt_sent"]:
+        warning = (warning + " " if warning else "") + "ATTENZIONE: la ricevuta al cliente NON è partita, mandala a mano."
+    await _notify_admin_order(
+        o, "withdrawal", once=False, request_number=w["request_number"], extra_title="Recesso richiesto",
+        extra_rows=[("Numero richiesta", w["request_number"]), ("Ricevuta il", w["received_at_local"])]
+        + [(f"{it['name']}", f"× {it['quantity']} (su {it['ordered_quantity']})") for it in chosen]
+        + ([("Nota del cliente", w["note"])] if w["note"] else []),
+        warning=warning)
+    return {"request_number": w["request_number"], "received_at": w["received_at"],
+            "received_at_local": w["received_at_local"], "order_number": o["order_number"],
+            "items": [{"name": it["name"], "quantity": it["quantity"]} for it in chosen],
+            "receipt_sent": w["receipt_sent"], "email": w["customer"]["email"]}
 
 
 # ---------------------------------------------------------------------------
@@ -1617,8 +1986,8 @@ async def request_samples(data: SampleRequestInput, request: Request):
         await _safe_send(data.customer.email,
                          f"Richiesta campioni ricevuta {req_number} — Ceramica Incontro",
                          await _sample_email_html(req))
-    if os.environ.get("ADMIN_EMAIL"):
-        await _safe_send(os.environ["ADMIN_EMAIL"],
+    if ADMIN_NOTIFY_EMAIL:
+        await _safe_send(ADMIN_NOTIFY_EMAIL,
                          f"Nuova richiesta campioni {req_number}",
                          _admin_notify_email_html("Nuova richiesta campioni", [
                              ("Numero", req_number), ("Cliente", data.customer.name),
@@ -1692,8 +2061,8 @@ async def request_quote(data: QuoteRequestInput, request: Request):
     await _safe_send(data.email,
                      f"Richiesta preventivo ricevuta {req_number} — Ceramica Incontro",
                      _quote_email_html(q))
-    if os.environ.get("ADMIN_EMAIL"):
-        await _safe_send(os.environ["ADMIN_EMAIL"],
+    if ADMIN_NOTIFY_EMAIL:
+        await _safe_send(ADMIN_NOTIFY_EMAIL,
                          f"Nuova richiesta preventivo {req_number} ({data.profession})",
                          _admin_notify_email_html("Nuova richiesta preventivo progetto", [
                              ("Numero", req_number), ("Nome", data.name), ("Email", data.email),
@@ -1834,8 +2203,11 @@ async def startup():
             {"shipping_option_id": {"$in": _RETIRED_SHIPPING_OPTION_IDS}})
         if removed.deleted_count:
             logger.info(f"Rimosse {removed.deleted_count} tariffe orfane per metodi di spedizione ritirati.")
+    await db.withdrawal_rl.create_index("at", expireAfterSeconds=3600)
+    await db.withdrawals.create_index("order_id")
     await seed_admin()
     await seed_products()
+    asyncio.create_task(_payment_watch_loop())
     logger.info("Ceramica Incontro shop ready.")
 
 

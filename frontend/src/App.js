@@ -27,6 +27,7 @@ import { Privacy, Cookie, Terms, Withdrawal, LegalNotes, Accessibility, AiAssist
 import { Assistant } from "@/components/shop/Assistant";
 import { SkipLink } from "@/components/shop/SkipLink";
 import Faq from "@/pages/Faq";
+import Withdraw from "@/pages/Withdraw";
 
 function Shell() {
   const location = useLocation();
@@ -67,6 +68,7 @@ function Shell() {
           <Route path="/accessibilita" element={<Accessibility />} />
           <Route path="/assistente-ia" element={<AiAssistant />} />
           <Route path="/faq" element={<Faq />} />
+          <Route path="/recedi" element={<Withdraw />} />
         </Routes>
       </main>
       <Footer />

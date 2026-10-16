@@ -120,7 +120,8 @@ export const Withdrawal = () => (
     <h2>Termini</h2>
     <p>Hai 14 giorni dal giorno in cui ricevi i beni (o l'ultimo bene, se l'ordine è consegnato in più spedizioni) per recedere senza indicare il motivo.</p>
     <h2>Come esercitarlo</h2>
-    <p>Invia una comunicazione esplicita a <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a> o alla PEC {COMPANY.pec}, indicando numero d'ordine, nome e prodotti. Puoi usare il modulo seguente (facoltativo).</p>
+    <p><strong>Online, in pochi passaggi:</strong> usa la funzione <Link to="/recedi" data-testid="legal-withdraw-link" className="font-medium">Recedere dal contratto qui</Link>, inserisci numero d'ordine ed email, scegli i prodotti e premi «Conferma il recesso». Ricevi subito via email una ricevuta con il contenuto della richiesta, la data e l'ora.</p>
+    <p>In alternativa invia una comunicazione esplicita a <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a> o alla PEC {COMPANY.pec}, indicando numero d'ordine, nome e prodotti. Puoi usare il modulo seguente (facoltativo).</p>
     <blockquote className="border-l-4 border-[#C05A3E] bg-white p-4 text-xs">
       «Io sottoscritto/a ___ comunico di recedere dal contratto di vendita dei seguenti beni: ___ ordinati il ___ / ricevuti il ___ — numero d'ordine ___ — indirizzo ___ — data e firma (solo se su carta).»
     </blockquote>

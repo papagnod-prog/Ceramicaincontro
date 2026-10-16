@@ -50,7 +50,7 @@ export const Header = () => {
             <span className="eyebrow text-[0.6rem] mt-1 text-[#C05A3E]">fittile_ · dal 1976</span>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-8 whitespace-nowrap">
             {COLLECTIONS.map((c) => (
               <Link
                 key={c}
@@ -67,6 +67,13 @@ export const Header = () => {
               className="text-sm font-medium text-[#C05A3E] hover:text-[#A64B32] ci-link-underline transition-colors"
             >
               Preventivi Progetto
+            </Link>
+            <Link
+              to="/faq"
+              data-testid="nav-faq-link"
+              className="text-sm font-medium text-[#57534E] hover:text-[#1C1917] ci-link-underline transition-colors"
+            >
+              Domande frequenti
             </Link>
             <a
               href="https://ceramicaincontro.it"
@@ -211,6 +218,9 @@ export const Header = () => {
           </Link>
           <Link to="/preventivo-progetto" onClick={() => setMobileOpen(false)} className="block py-2 text-[#C05A3E] font-medium">
             Preventivi Progetto
+          </Link>
+          <Link to="/faq" onClick={() => setMobileOpen(false)} data-testid="mobile-nav-faq-link" className="block py-2 text-[#1C1917] font-medium">
+            Domande frequenti
           </Link>
         </div>
       )}

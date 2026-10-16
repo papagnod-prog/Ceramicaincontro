@@ -37,7 +37,7 @@ CHAT_PER_HOUR = 15
 ORDER_PER_HOUR = 10
 SUPPORT_PER_HOUR = 5
 KNOWLEDGE = (Path(__file__).parent / "assistant_knowledge.md").read_text(encoding="utf-8")
-SUPPORT_TO = os.environ.get("ADMIN_EMAIL") or "info@ceramicaincontro.it"
+SUPPORT_TO = "contatto@ceramicaincontro.it"  # avvisi all'amministratore (non ADMIN_EMAIL = login pannello)
 
 FALLBACK_HUMAN = ("Per questo ti conviene sentire una persona: scrivi a info@ceramicaincontro.it, "
                   "chiama +39 080 898 4326 (lun-ven 9-13 / 15-18) oppure lascia qui una richiesta di assistenza.")
@@ -115,7 +115,7 @@ TOOLS = [
     },
     {
         "name": "proponi_operatore",
-        "description": "Mostra al cliente il pulsante per lasciare una richiesta di assistenza a una persona (arriva a info@ con il riepilogo della chat).",
+        "description": "Mostra al cliente il pulsante per lasciare una richiesta di assistenza a una persona (arriva all'assistenza con il riepilogo della chat).",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
 ]

@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { paymentLabel, paymentOk } from "@/lib/payment";
 
 const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "cancelled", "refunded"];
 const STATUS_LABEL = {
@@ -512,12 +513,8 @@ export default function Admin() {
                   </td>
                   <td className="px-4 py-3 font-medium">{eur(o.total)}</td>
                   <td className="px-4 py-3">
-                    <span className={["paid", "cod_pending", "awaiting_transfer"].includes(o.payment_status) ? "text-[#3F7A4F]" : "text-[#78716C]"}>
-                      {{
-                        paid: "Pagato (carta)",
-                        cod_pending: "Contanti alla consegna",
-                        awaiting_transfer: "In attesa di bonifico",
-                      }[o.payment_status] || o.payment_status}
+                    <span className={paymentOk(o) ? "text-[#3F7A4F]" : "text-[#78716C]"}>
+                      {paymentLabel(o)}
                     </span>
                   </td>
                   <td className="px-4 py-3 min-w-[160px]">

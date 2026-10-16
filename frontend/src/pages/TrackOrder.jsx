@@ -95,6 +95,15 @@ export default function TrackOrder() {
           <span>Totale</span><span>{eur(order.total)}</span>
         </div>
       </div>
+
+      {!["cancelled", "refunded"].includes(order.status) && (
+        <p className="text-sm text-[#57534E] mt-6">
+          Vuoi restituire i prodotti?{" "}
+          <Link to={`/recedi?ordine=${encodeURIComponent(order.order_number)}`} data-testid="track-withdraw-link" className="text-[#C05A3E] underline font-medium">
+            Recedere dal contratto qui
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

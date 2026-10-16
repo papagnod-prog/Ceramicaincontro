@@ -41,7 +41,7 @@ export const PAGE_META = {
 };
 
 /** Pagine private o di servizio: non devono finire su Google. */
-const NOINDEX_PREFIXES = ["/checkout", "/account", "/admin", "/login", "/register", "/payment", "/ordine"];
+const NOINDEX_PREFIXES = ["/checkout", "/account", "/admin", "/login", "/register", "/payment", "/ordine", "/recedi"];
 export const isNoindexPath = (path) =>
   NOINDEX_PREFIXES.some((p) => path === p || path.startsWith(p + "/"));
 
