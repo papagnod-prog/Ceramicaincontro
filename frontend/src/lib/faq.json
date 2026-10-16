@@ -1,0 +1,109 @@
+{
+  "_nota": "Testi delle Domande frequenti (pagina /faq). Ogni risposta è una lista di blocchi: una stringa è un paragrafo, {\"list\": [...]} è un elenco puntato. Link: [testo](/percorso-dello-store) oppure [testo](mailto:...). **grassetto**.",
+  "sections": [
+    {
+      "id": "spedizioni",
+      "title": "Spedizioni e consegna",
+      "items": [
+        { "q": "Dove spedite?", "a": ["In tutta Italia, con il corriere Arco Spedizioni."] },
+        { "q": "Quanto tempo ci vuole?", "a": ["Di norma 4-5 giorni lavorativi, salvo indisponibilità dell'articolo."] },
+        { "q": "Quanto costa la spedizione?", "a": ["Dipende dalla regione di consegna, dal peso dell'ordine e dalla linea di prodotto. Il costo esatto compare nel checkout appena scegli la regione, prima di confermare l'ordine."] },
+        { "q": "Come avviene la consegna?", "a": ["La consegna è **a piano strada** ed è compresa nel costo di trasporto. Non è prevista la consegna al piano."] },
+        { "q": "Cosa devo fare quando arriva la merce?", "a": ["Controlla subito l'imballo e le quantità. Se noti danni, scrivi una riserva sul documento del corriere e avvisaci entro 8 giorni a [info@ceramicaincontro.it](mailto:info@ceramicaincontro.it), allegando delle foto."] },
+        { "q": "Posso ritirare in sede?", "a": ["Sì. Il ritiro a Corato (BA), S.P. 231 Km 34,200, è gratuito e su appuntamento. Sceglilo come metodo di spedizione nel checkout."] },
+        { "q": "La mia regione non ha una tariffa: cosa faccio?", "a": ["Nel checkout trovi il pulsante per chiedere un preventivo di spedizione al nostro ufficio spedizioni. Ti risponde una persona."] }
+      ]
+    },
+    {
+      "id": "pagamenti",
+      "title": "Pagamenti e fattura",
+      "items": [
+        { "q": "Come posso pagare?", "a": [
+          { "list": [
+            "Con **carta** tramite Stripe: il pagamento è immediato. Anche Apple Pay e Google Pay, se disponibili sul tuo dispositivo.",
+            "Con **bonifico bancario**: i dati per il bonifico arrivano via email dopo l'ordine. Usa il numero d'ordine come causale."
+          ] },
+          "PayPal, contanti e contrassegno non sono disponibili."
+        ] },
+        { "q": "Entro quando devo fare il bonifico?", "a": ["Entro 5 giorni lavorativi dall'ordine. Dopo, l'ordine può essere annullato. Prepariamo l'ordine quando arriva l'accredito."] },
+        { "q": "I prezzi sono IVA inclusa?", "a": ["No: i prezzi nel negozio sono IVA esclusa. IVA e spese di trasporto sono mostrate nel riepilogo, prima di confermare l'ordine."] },
+        { "q": "Come ricevo la fattura?", "a": [
+          "Ti arriva via email. Per prepararla ci servono questi dati:",
+          { "list": [
+            "**Aziende:** nel checkout indica Partita IVA e Codice SDI oppure PEC (almeno uno dei due).",
+            "**Privati:** nel checkout è richiesto il codice fiscale."
+          ] }
+        ] }
+      ]
+    },
+    {
+      "id": "resi",
+      "title": "Resi e diritto di recesso",
+      "items": [
+        { "q": "Posso restituire i prodotti?", "a": ["Se sei un consumatore, hai 14 giorni dal ricevimento della merce per recedere, senza dare spiegazioni. Il recesso non vale per aziende e professionisti."] },
+        { "q": "Come faccio?", "a": ["Scrivi a [info@ceramicaincontro.it](mailto:info@ceramicaincontro.it) o alla PEC indicando numero d'ordine, nome e prodotti. Puoi usare il modulo nella pagina [Diritto di recesso](/recesso). Poi restituisci la merce entro 14 giorni dalla comunicazione, integra e nell'imballo originale."] },
+        { "q": "Chi paga la spedizione del reso?", "a": ["Il cliente."] },
+        { "q": "Quando ricevo il rimborso?", "a": ["Entro 14 giorni dalla comunicazione del recesso, con lo stesso mezzo di pagamento (o con bonifico). Il rimborso comprende anche le spese di consegna standard. Possiamo attendere di ricevere la merce prima di rimborsare."] },
+        { "q": "Ci sono prodotti esclusi?", "a": [
+          "Sì:",
+          { "list": [
+            "i prodotti tagliati o realizzati su misura;",
+            "gli articoli fuori catalogo prodotti su tua richiesta."
+          ] }
+        ] },
+        { "q": "La merce è arrivata danneggiata o non conforme.", "a": ["Scrivi a [info@ceramicaincontro.it](mailto:info@ceramicaincontro.it) allegando foto: si applica la garanzia legale. Ogni caso viene valutato da una persona del nostro staff."] }
+      ]
+    },
+    {
+      "id": "campioni",
+      "title": "Campioni",
+      "items": [
+        { "q": "Posso vedere il prodotto prima di comprarlo?", "a": [
+          "Sì, puoi richiedere dei campioni dalla pagina [Campioni](/campioni).",
+          { "list": [
+            "Puoi sceglierne fino a 3 per richiesta.",
+            "I campioni sono gratuiti: paghi solo un contributo spese di spedizione forfettario di 6 €, con carta o bonifico."
+          ] }
+        ] },
+        { "q": "Perché conviene chiedere un campione?", "a": ["Le immagini sono indicative: tonalità e finitura della ceramica possono variare da lotto a lotto. Il campione ti fa vedere il colore dal vero."] }
+      ]
+    },
+    {
+      "id": "ordini",
+      "title": "Ordini e stato dell'ordine",
+      "items": [
+        { "q": "Come controllo il mio ordine?", "a": [
+          "Ti serve il numero d'ordine (formato CI-AAMMGG-XXXXXX) e l'email usata all'acquisto. Lo stato puoi verificarlo:",
+          { "list": [
+            "con il link nell'email di conferma;",
+            "oppure chiedendolo all'assistente Glaze."
+          ] }
+        ] },
+        { "q": "Riceverò aggiornamenti?", "a": ["Sì: ogni cambio di stato dell'ordine arriva anche per email, con il link per seguirlo."] },
+        { "q": "Devo registrarmi per ordinare?", "a": ["No, puoi ordinare anche come ospite. Con un account trovi i tuoi ordini nella pagina [Il mio account](/account)."] }
+      ]
+    },
+    {
+      "id": "preventivi",
+      "title": "Preventivi progetto",
+      "items": [
+        { "q": "Ho un progetto grande: posso avere un'offerta dedicata?", "a": ["Sì. Architetti, imprese e rivenditori possono usare la pagina [Preventivi Progetto](/preventivo-progetto): una persona del nostro staff risponde con un'offerta su misura."] }
+      ]
+    },
+    {
+      "id": "prodotti",
+      "title": "Prodotti",
+      "items": [
+        { "q": "Come si vendono i prodotti?", "a": [
+          "Tutti i prodotti si vendono a confezione.",
+          { "list": [
+            "Per i battiscopa la confezione indica il numero di **pezzi**: 30 pezzi per i modelli 33…, 15 pezzi per i modelli 60….",
+            "I valori di ogni articolo sono nella sua scheda prodotto."
+          ] }
+        ] },
+        { "q": "Gli articoli sono disponibili subito?", "a": ["Gli articoli sono ordinabili. Per la disponibilità e la data di spedizione di un articolo specifico, contatta il nostro staff."] },
+        { "q": "Ho bisogno di aiuto per scegliere.", "a": ["Scrivi a [info@ceramicaincontro.it](mailto:info@ceramicaincontro.it) o chiama il +39 080 898 4326, dal lunedì al venerdì, 9:00-13:00 e 15:00-18:00. Puoi anche chiedere all'assistente Glaze."] }
+      ]
+    }
+  ]
+}

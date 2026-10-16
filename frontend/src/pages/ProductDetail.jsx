@@ -5,6 +5,7 @@ import { useCart } from "@/context/CartContext";
 import { useSamples, MAX_SAMPLES } from "@/context/SamplesContext";
 import { Minus, Plus, ArrowLeft, Check, Beaker } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { productDescription, productJsonLd } from "@/lib/seo.mjs";
 import ProductGallery from "@/components/shop/ProductGallery";
 
 export default function ProductDetail() {
@@ -13,7 +14,24 @@ export default function ProductDetail() {
   const { addSample, items: sampleItems } = useSamples();
   const [product, setProduct] = useState(null);
   const [qty, setQty] = useState(1);
-  usePageTitle(product ? product.name : "Prodotto");
+  const [vatRate, setVatRate] = useState(22);
+  usePageTitle(
+    product ? product.name : product === false ? "Prodotto non trovato" : "Prodotto",
+    product
+      ? {
+          description: productDescription(product),
+          image: product.image || undefined,
+          ogType: "product",
+          jsonLd: productJsonLd(product, vatRate),
+        }
+      : { noindex: product === false },
+  );
+
+  useEffect(() => {
+    api.get("/vat").then(({ data }) => {
+      if (typeof data?.vat_rate_products === "number") setVatRate(data.vat_rate_products);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.get(`/products/${id}`).then(({ data }) => setProduct(data)).catch(() => setProduct(false));

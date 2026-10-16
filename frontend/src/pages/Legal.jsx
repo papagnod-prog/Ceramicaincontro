@@ -93,7 +93,7 @@ export const Terms = () => (
     <h2>2. Ambito</h2>
     <p>Le presenti condizioni regolano la vendita a distanza dei prodotti ceramici (battiscopa, rivestimenti e accessori) proposti nel negozio online, a consumatori e a clienti professionali (aziende, partita IVA). Le norme a tutela del consumatore (D.Lgs. 206/2005, Codice del Consumo) si applicano solo ai consumatori.</p>
     <h2>3. Prodotti e prezzi</h2>
-    <p>I prezzi sono indicati per unità di misura (es. metro lineare) e, dove specificato, <strong>IVA esclusa</strong>; l'IVA e le spese di trasporto sono mostrate nel riepilogo prima della conferma. Le immagini sono indicative: tonalità e finitura della ceramica possono variare da lotto a lotto. Per verificare il colore è possibile richiedere dei campioni.</p>
+    <p>I prezzi sono indicati a confezione e, dove specificato, <strong>IVA esclusa</strong>; l'IVA e le spese di trasporto sono mostrate nel riepilogo prima della conferma. Le immagini sono indicative: tonalità e finitura della ceramica possono variare da lotto a lotto. Per verificare il colore è possibile richiedere dei campioni.</p>
     <h2>4. Conclusione del contratto e obbligo di pagamento</h2>
     <p>Cliccando su <strong>«Ordine con obbligo di pagamento»</strong> il cliente invia una proposta d'acquisto. Il contratto si conclude con la nostra conferma dell'ordine via email. Al cliente è richiesto il pagamento secondo il metodo scelto.</p>
     <h2>5. Pagamento</h2>

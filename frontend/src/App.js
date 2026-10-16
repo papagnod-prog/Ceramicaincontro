@@ -26,6 +26,7 @@ import AdminOrderDetail from "@/pages/AdminOrderDetail";
 import { Privacy, Cookie, Terms, Withdrawal, LegalNotes, Accessibility, AiAssistant } from "@/pages/Legal";
 import { Assistant } from "@/components/shop/Assistant";
 import { SkipLink } from "@/components/shop/SkipLink";
+import Faq from "@/pages/Faq";
 
 function Shell() {
   const location = useLocation();
@@ -65,6 +66,7 @@ function Shell() {
           <Route path="/note-legali" element={<LegalNotes />} />
           <Route path="/accessibilita" element={<Accessibility />} />
           <Route path="/assistente-ia" element={<AiAssistant />} />
+          <Route path="/faq" element={<Faq />} />
         </Routes>
       </main>
       <Footer />

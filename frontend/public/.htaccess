@@ -3,10 +3,17 @@
 RewriteEngine On
 RewriteBase /store/
 
+# Pagine già pronte per Google (prodotti, FAQ, pagine pubbliche):
+# /store/faq → faq.html, /store/prodotto/<id> → prodotto/<id>.html
+RewriteCond %{PATH_INFO} ^/?$
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.+?)/?$ $1.html [L]
+
 # Serve real files/folders (JS, CSS, images, etc.) directly
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Everything else under /store falls back to index.html so React Router can handle it
-RewriteRule ^ index.html [L]
+# Everything else under /store (checkout, account, admin, …) falls back to the
+# app shell so React Router can handle it
+RewriteRule ^ app.html [L]
