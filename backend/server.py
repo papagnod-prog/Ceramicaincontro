@@ -771,7 +771,7 @@ async def compute_regional_shipping(shipping_option_id: str, region: str, lines:
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
-TERMS_VERSION = "2026-10-06"
+TERMS_VERSION = "2026-10-20"
 
 
 def _consent_record(request: Request, kinds: List[str]) -> dict:
