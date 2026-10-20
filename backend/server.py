@@ -169,14 +169,15 @@ def _assert_safe_email(subject: str, html: str) -> None:
                 raise ValueError(f"Anchor text {m.group(1)!r} != real link host {real!r} (G3)")
 
 
-def _send_email_smtp_sync(*, to: str, subject: str, html: str) -> str:
+def _send_email_smtp_sync(*, to: str, subject: str, html: str, attachments: Optional[list] = None) -> str:
     import smtplib
     import ssl
+    from email.mime.image import MIMEImage
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
     from email.utils import formataddr, make_msgid
 
-    msg = MIMEMultipart("alternative")
+    msg = MIMEMultipart("mixed") if attachments else MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = formataddr((EMAIL_FROM_NAME, EMAIL_FROM_ADDRESS))
     msg["To"] = to
@@ -185,6 +186,10 @@ def _send_email_smtp_sync(*, to: str, subject: str, html: str) -> str:
     msg_id = make_msgid()
     msg["Message-ID"] = msg_id
     msg.attach(MIMEText(html, "html", "utf-8"))
+    for a in attachments or []:
+        part = MIMEImage(a["data"], _subtype=a["mime"].split("/")[-1])
+        part.add_header("Content-Disposition", "attachment", filename=a["filename"])
+        msg.attach(part)
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as server:
@@ -193,7 +198,7 @@ def _send_email_smtp_sync(*, to: str, subject: str, html: str) -> str:
     return msg_id
 
 
-async def _send_email_wp_relay(*, to: str, subject: str, html: str) -> str:
+async def _send_email_wp_relay(*, to: str, subject: str, html: str, attachments: Optional[list] = None) -> str:
     import base64
     import hashlib
     import hmac
@@ -208,6 +213,10 @@ async def _send_email_wp_relay(*, to: str, subject: str, html: str) -> str:
         "ts": int(time.time()),
         "nonce": secrets.token_hex(16),
     }
+    if attachments:
+        # Letti dal modulo WordPress ci-store-mail.php dalla versione 1.1 (le versioni precedenti li ignorano).
+        payload["attachments"] = [{"filename": a["filename"], "mime": a["mime"],
+                                   "data_b64": base64.b64encode(a["data"]).decode("ascii")} for a in attachments]
     body = json.dumps(payload, separators=(",", ":"))
     sig = hmac.new(WP_MAIL_RELAY_SECRET.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).hexdigest()
     async with httpx.AsyncClient(timeout=20) as http:
@@ -226,17 +235,18 @@ async def _send_email_wp_relay(*, to: str, subject: str, html: str) -> str:
     return str(data.get("id") or payload["nonce"])
 
 
-async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+async def send_email(*, to: str, subject: str, html: str, attachments: Optional[list] = None) -> Optional[str]:
+    """attachments: lista di {"filename", "mime" (image/jpeg|png|webp), "data" (bytes)}."""
     if WP_MAIL_RELAY_URL and WP_MAIL_RELAY_SECRET:
         _assert_safe_email(subject, html)
-        msg_id = await _send_email_wp_relay(to=to, subject=subject, html=html)
+        msg_id = await _send_email_wp_relay(to=to, subject=subject, html=html, attachments=attachments)
         logger.info(f"Email inviata via WordPress a {to}")
         return msg_id
     if not (SMTP_HOST and SMTP_USER and SMTP_PASSWORD):
         logger.warning("SMTP not configured (SMTP_HOST/SMTP_USER/SMTP_PASSWORD) — skipping email send")
         return None
     _assert_safe_email(subject, html)
-    return await asyncio.to_thread(_send_email_smtp_sync, to=to, subject=subject, html=html)
+    return await asyncio.to_thread(_send_email_smtp_sync, to=to, subject=subject, html=html, attachments=attachments)
 
 
 def _brand_wrap(inner: str) -> str:
@@ -580,9 +590,9 @@ async def _notify_admin_order(order: dict, kind: str, *, once: bool = True, requ
     return True
 
 
-async def _safe_send(to: str, subject: str, html: str):
+async def _safe_send(to: str, subject: str, html: str, attachments: Optional[list] = None):
     try:
-        await send_email(to=to, subject=subject, html=html)
+        await send_email(to=to, subject=subject, html=html, attachments=attachments)
     except Exception as e:
         logger.error(f"Email non inviata a {to}: {e}")
 
@@ -2210,6 +2220,11 @@ async def startup():
             logger.info(f"Rimosse {removed.deleted_count} tariffe orfane per metodi di spedizione ritirati.")
     await db.withdrawal_rl.create_index("at", expireAfterSeconds=3600)
     await db.withdrawals.create_index("order_id")
+    # Chat di Glaze e foto: cancellate in automatico alla data expires_at (6 mesi dall'ultimo messaggio).
+    await db.assistant_chats.create_index("expires_at", expireAfterSeconds=0)
+    await db.assistant_chats.create_index("updated_at")
+    await db.assistant_photos.create_index("expires_at", expireAfterSeconds=0)
+    await db.assistant_photos.create_index("chat_id")
     await seed_admin()
     await seed_products()
     asyncio.create_task(_payment_watch_loop())
@@ -2222,7 +2237,7 @@ _assistant.register(api_router, {
     "price_cart": _price_cart, "quote_shipping": _quote_shipping, "get_vat_rates": get_vat_rates,
     "compute_vat": compute_vat, "CartItem": CartItem, "order_status_labels": ORDER_STATUS_LABEL_IT,
     "safe_send": _safe_send, "brand_wrap": _brand_wrap, "consent_record": _consent_record,
-    "require": _require, "jwt_secret": JWT_SECRET,
+    "require": _require, "jwt_secret": JWT_SECRET, "store_url": STORE_URL, "site_root": SITE_ROOT,
 })
 
 app.include_router(api_router)

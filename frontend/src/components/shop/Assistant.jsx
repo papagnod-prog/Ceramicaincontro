@@ -1,8 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import api from "@/lib/api";
 
 const MAX_SENT = 6;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const PHOTO_MAX_SIDE = 1024;
+const PHOTO_MAX_CHARS = 1_000_000; // ~750 KB dopo la riduzione
+const PHOTO_DEFAULT_Q = "Quale battiscopa si abbina a questa foto?";
+
+// Riduce la foto nel browser (lato lungo 1024 px, JPEG) prima dell'invio.
+function shrinkPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, PHOTO_MAX_SIDE / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * k)); const h = Math.max(1, Math.round(img.height * k));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      let q = 0.85; let out = c.toDataURL("image/jpeg", q);
+      while (out.length > PHOTO_MAX_CHARS && q > 0.4) { q -= 0.15; out = c.toDataURL("image/jpeg", q); }
+      if (out.length > PHOTO_MAX_CHARS) reject(new Error("big")); else resolve(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("read")); };
+    img.src = url;
+  });
+}
 const QUICK = [
   "Dov'è il mio ordine?",
   "Quante confezioni mi servono?",
@@ -23,6 +47,11 @@ export function Assistant() {
   const [card, setCard] = useState(null);
   const [err, setErr] = useState("");
   const [sent, setSent] = useState(false);
+  const [chatId, setChatId] = useState(null);
+  const [photo, setPhoto] = useState(null); // data URL pronta per l'invio
+  const [photoErr, setPhotoErr] = useState("");
+  const location = useLocation();
+  const fileRef = useRef(null);
   const btnRef = useRef(null);
   const inputRef = useRef(null);
   const endRef = useRef(null);
@@ -46,14 +75,29 @@ export function Assistant() {
   const userCount = msgs.filter((m) => m.role === "user").length;
   const limitReached = userCount >= MAX_SENT;
 
+  const pickPhoto = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    setPhotoErr("");
+    if (!f) return;
+    if (!PHOTO_TYPES.includes(f.type)) { setPhotoErr("Formato non supportato: usa una foto JPG, PNG o WEBP."); return; }
+    if (f.size > 25 * 1024 * 1024) { setPhotoErr("La foto è troppo grande (massimo 25 MB)."); return; }
+    try { setPhoto(await shrinkPhoto(f)); inputRef.current?.focus(); }
+    catch { setPhotoErr("Non riesco a leggere questa foto. Prova con un'altra."); }
+  };
+
   const send = async (text) => {
-    const t = (text ?? input).trim();
+    const img = text === undefined ? photo : null;
+    const t = ((text ?? input).trim()) || (img ? PHOTO_DEFAULT_Q : "");
     if (!t || busy || limitReached) return;
-    const next = [...msgs, { role: "user", content: t }];
-    setMsgs(next); setInput(""); setBusy(true); setErr("");
+    const next = [...msgs, img ? { role: "user", content: t, image: img } : { role: "user", content: t }];
+    setMsgs(next); setInput(""); setBusy(true); setErr(""); setPhoto(null); setPhotoErr("");
     try {
       const history = next.filter((m) => !m.local).slice(-8).map(({ role, content }) => ({ role, content }));
-      const { data } = await api.post("/assistant/chat", { messages: history, order_token: orderToken });
+      const payload = { messages: history, order_token: orderToken, chat_id: chatId, page: location.pathname };
+      if (img) payload.image = img;
+      const { data } = await api.post("/assistant/chat", payload);
+      if (data.chat_id) setChatId(data.chat_id);
       setMsgs((m) => [...m, { role: "assistant", content: data.text }]);
       if (data.action === "order_form") setPanel("order");
       else if (data.action === "support") setPanel("support");
@@ -95,7 +139,7 @@ export function Assistant() {
       ev.preventDefault(); setLd(true); setE("");
       try {
         const transcript = msgs.filter((x) => !x.local).slice(-12).map(({ role, content }) => ({ role, content }));
-        const { data } = await api.post("/assistant/support", { name, email: em, message: m, transcript, accept_privacy: ok });
+        const { data } = await api.post("/assistant/support", { name, email: em, message: m, transcript, accept_privacy: ok, chat_id: chatId });
         setSent(data.request_number); setPanel(null);
         setMsgs((x) => [...x, { role: "assistant", content: `Richiesta inviata (${data.request_number}). Una persona ti risponderà via email in orario di assistenza.` }]);
       } catch (x) {
@@ -105,7 +149,7 @@ export function Assistant() {
     };
     return (
       <form onSubmit={go} className="bg-white border border-[#E7E5E4] p-3 space-y-2" aria-label="Richiesta di assistenza">
-        <p className="text-xs text-[#57534E]">Lascia i tuoi dati: una persona ti risponde via email. Allegheremo il riepilogo della chat.</p>
+        <p className="text-xs text-[#57534E]">Lascia i tuoi dati: una persona ti risponde via email. Allegheremo il riepilogo della chat{msgs.some((x) => x.image) ? " e le foto inviate" : ""}.</p>
         <label className="block text-xs">Nome
           <input required value={name} onChange={(x) => setName(x.target.value)} className="mt-1 w-full border border-[#A8A29E] px-2 py-1.5 text-sm" /></label>
         <label className="block text-xs">Email
@@ -137,11 +181,12 @@ export function Assistant() {
             <button onClick={close} aria-label="Chiudi assistente" className="px-2 text-lg leading-none">×</button>
           </div>
           <p className="text-[11px] bg-[#E7E5E4] text-[#292524] px-4 py-1.5">
-            Sei in chat con un'IA, non con una persona. Non scrivere dati di carte o IBAN. <Link to="/assistente-ia" className="underline">Come funziona</Link>
+            Sei in chat con un'IA, non con una persona. La conversazione e le eventuali foto vengono salvate per 6 mesi per migliorare il servizio. Non scrivere dati di carte o IBAN. <Link to="/assistente-ia" className="underline">Come funziona e privacy</Link>
           </p>
           <div className="flex-1 overflow-y-auto p-3 space-y-2" role="log" aria-live="polite" aria-relevant="additions">
             {msgs.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex"}>
+              <div key={i} className={m.role === "user" ? "flex flex-col items-end gap-1" : "flex"}>
+                {m.image && <img src={m.image} alt="Foto inviata" data-testid="assistant-msg-photo" className="max-w-[60%] max-h-40 object-cover border border-[#D6D3D1]" />}
                 <p className={`text-sm px-3 py-2 max-w-[85%] whitespace-pre-wrap ${m.role === "user" ? "bg-[#A64B32] text-white" : "bg-white border border-[#E7E5E4] text-[#1C1917]"}`}>{m.content}</p>
               </div>
             ))}
@@ -171,12 +216,30 @@ export function Assistant() {
             )}
             <div ref={endRef} />
           </div>
+          {(photo || photoErr) && (
+            <div className="border-t border-[#D6D3D1] bg-white px-2 pt-2 text-xs" data-testid="assistant-photo-preview">
+              {photo && (
+                <div className="flex items-center gap-2">
+                  <img src={photo} alt="Foto da inviare" className="w-14 h-14 object-cover border border-[#D6D3D1]" />
+                  <span className="flex-1 text-[#57534E]">Foto pronta. Aggiungi una domanda o premi Invia. Confronto indicativo: per il colore esatto chiedi i campioni. Max 1 foto all'ora.</span>
+                  <button type="button" onClick={() => setPhoto(null)} aria-label="Rimuovi foto" data-testid="assistant-photo-remove" className="px-2 text-lg leading-none text-[#57534E]">×</button>
+                </div>
+              )}
+              {photoErr && <p role="alert" className="text-[#B91C1C]">{photoErr}</p>}
+            </div>
+          )}
           <form onSubmit={(e) => { e.preventDefault(); send(); }} className="border-t border-[#D6D3D1] p-2 flex gap-2 bg-white">
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={pickPhoto} className="hidden" data-testid="assistant-photo-input" tabIndex={-1} aria-hidden="true" />
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy || limitReached}
+              aria-label="Allega una foto (per esempio del pavimento) per abbinare un battiscopa" title="Allega una foto"
+              data-testid="assistant-photo-btn" className="border border-[#A8A29E] px-2 text-[#57534E] disabled:opacity-60">
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h3l2-2h6l2 2h3v12H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+            </button>
             <label className="sr-only" htmlFor="glaze-input">Scrivi un messaggio</label>
             <input id="glaze-input" ref={inputRef} value={input} maxLength={500} onChange={(e) => setInput(e.target.value)}
-              disabled={limitReached} placeholder={limitReached ? "Limite raggiunto: chiedi a una persona" : "Scrivi qui…"}
-              className="flex-1 border border-[#A8A29E] px-2 py-1.5 text-sm" />
-            <button disabled={busy || limitReached || !input.trim()} className="bg-[#A64B32] text-white text-sm px-3 disabled:opacity-60">Invia</button>
+              disabled={limitReached} placeholder={limitReached ? "Limite raggiunto: chiedi a una persona" : photo ? "Domanda sulla foto (facoltativa)…" : "Scrivi qui…"}
+              className="flex-1 min-w-0 border border-[#A8A29E] px-2 py-1.5 text-sm" />
+            <button disabled={busy || limitReached || (!input.trim() && !photo)} className="bg-[#A64B32] text-white text-sm px-3 disabled:opacity-60">Invia</button>
           </form>
         </div>
       )}

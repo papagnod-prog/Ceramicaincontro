@@ -5,8 +5,9 @@ import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText, Truck, Search, Check,
+  LayoutGrid, Package, ClipboardList, Plus, Pencil, Trash2, X, ArrowLeft, Beaker, FileText, Truck, Search, Check, MessageSquare,
 } from "lucide-react";
+import AdminChats from "@/components/admin/AdminChats";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -40,7 +41,9 @@ export default function Admin() {
   usePageTitle("Pannello Admin");
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState("dashboard");
+  // ?chat=<id> (link nell'email di richiesta di assistenza) apre direttamente la chat di Glaze.
+  const [linkedChat] = useState(() => new URLSearchParams(window.location.search).get("chat"));
+  const [tab, setTab] = useState(linkedChat ? "chats" : "dashboard");
   const [stats, setStats] = useState(null);
   const [aiUse, setAiUse] = useState(null);
   const [products, setProducts] = useState([]);
@@ -335,7 +338,7 @@ export default function Admin() {
       </Link>
       <h1 className="font-serif-display text-4xl font-light mb-8">Pannello Amministrazione</h1>
 
-      <div data-testid="admin-navigation-bar" className="flex gap-2 border-b border-[#E2DDD5] mb-8">
+      <div data-testid="admin-navigation-bar" className="flex gap-2 border-b border-[#E2DDD5] mb-8 overflow-x-auto whitespace-nowrap">
         {[
           ["dashboard", "Dashboard", LayoutGrid],
           ["products", "Prodotti", Package],
@@ -343,6 +346,7 @@ export default function Admin() {
           ["samples", "Campioni", Beaker],
           ["quotes", "Preventivi", FileText],
           ["shipping", "Spedizioni", Truck],
+          ["chats", "Chat Glaze", MessageSquare],
         ].map(([k, label, Icon]) => (
           <button
             key={k}
@@ -356,6 +360,8 @@ export default function Admin() {
           </button>
         ))}
       </div>
+
+      {tab === "chats" && <AdminChats initialChatId={linkedChat} />}
 
       {/* Dashboard */}
       {tab === "dashboard" && aiUse && (

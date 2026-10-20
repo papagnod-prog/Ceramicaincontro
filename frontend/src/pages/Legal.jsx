@@ -57,7 +57,7 @@ export const Privacy = () => (
     <h2>8. Conferimento dei dati</h2>
     <p>I dati richiesti nei moduli sono necessari per completare l'ordine o rispondere alla tua richiesta; senza di essi non possiamo darvi seguito.</p>
     <h2>9. Assistente virtuale</h2>
-    <p>Il negozio include «Glaze», un assistente basato su intelligenza artificiale. Le domande scritte in chat sono inviate al fornitore Anthropic, che le elabora come responsabile del trattamento. Dettagli nella pagina <Link to="/assistente-ia">Assistente IA</Link>.</p>
+    <p>Il negozio include «Glaze», un assistente basato su intelligenza artificiale. Le domande scritte in chat e le eventuali foto sono inviate al fornitore Anthropic, che le elabora come responsabile del trattamento. Le conversazioni, comprese le foto, sono conservate per 6 mesi dall'ultimo messaggio per migliorare il servizio e poi cancellate in automatico. Dettagli nella pagina <Link to="/assistente-ia">Assistente IA</Link>.</p>
   </Shell>
 );
 
@@ -178,13 +178,14 @@ export const AiAssistant = () => (
       <li>Risponde su catalogo, confezioni e m², spedizioni, pagamenti, recesso, campioni e preventivi.</li>
       <li>Mostra lo stato di un ordine solo dopo la verifica di numero ordine ed email.</li>
       <li>Non prende decisioni su resi, rimborsi o eccezioni: per quelle ti passa a una persona.</li>
+      <li>Puoi inviare una foto (per esempio del pavimento o della parete) per farti suggerire il battiscopa più adatto: Glaze la confronta con le foto del catalogo. Il confronto è indicativo, perché luce, schermo e lotto di produzione cambiano la resa del colore. Per una scelta sicura richiedi i campioni. Massimo una foto all'ora, in formato JPG, PNG o WEBP.</li>
     </ul>
     <h2>Dati e privacy</h2>
     <ul>
-      <li>Il testo che scrivi è inviato ad Anthropic (fornitore di IA, responsabile del trattamento con accordo di trattamento dati) per generare la risposta; può essere trattato fuori dallo SEE con clausole contrattuali standard.</li>
-      <li>Non salviamo le conversazioni: la cronologia resta nel tuo browser finché chiudi o ricarichi la pagina.</li>
-      <li>Email e numeri di telefono scritti in chat vengono oscurati prima dell'invio; non scrivere carte di pagamento, IBAN o altri dati riservati.</li>
-      <li>Se chiedi di parlare con una persona, conserviamo nome, email, messaggio e riepilogo della chat per rispondere, per 6 mesi.</li>
+      <li>Il testo che scrivi e le foto che invii sono trasmessi ad Anthropic (fornitore di IA, responsabile del trattamento con accordo di trattamento dati) per generare la risposta; possono essere trattati fuori dallo SEE con clausole contrattuali standard.</li>
+      <li>Salviamo le conversazioni, comprese le foto, per 6 mesi dall'ultimo messaggio, per verificare la qualità delle risposte e migliorare il servizio. Le consulta solo il personale autorizzato di Ceramica Incontro; poi si cancellano in automatico. Puoi chiederne prima la cancellazione scrivendo a <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>.</li>
+      <li>Email e numeri di telefono scritti in chat vengono oscurati prima dell'invio e del salvataggio; non scrivere carte di pagamento, IBAN o altri dati riservati, e non inviare foto in cui si vedono persone o documenti.</li>
+      <li>Se chiedi di parlare con una persona, conserviamo nome, email, messaggio, riepilogo della chat e le foto inviate (che arrivano in allegato alla nostra assistenza) per rispondere, per 6 mesi.</li>
     </ul>
     <p>Base giuridica: esecuzione di misure precontrattuali/contrattuali e legittimo interesse a fornire assistenza (art. 6 GDPR). Diritti e contatti nell'<Link to="/privacy">Informativa privacy</Link>. Assistenza umana: <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>, {COMPANY.phone}.</p>
   </Shell>
