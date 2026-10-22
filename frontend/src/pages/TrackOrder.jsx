@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api, { eur } from "@/lib/api";
-import { Package, CheckCircle2, Truck, Clock, XCircle } from "lucide-react";
+import { Package, CheckCircle2, Truck, Clock, XCircle, FileCheck2 } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
 const STATUS_COLOR = {
@@ -9,6 +9,7 @@ const STATUS_COLOR = {
   processing: "bg-[#EAF0EC] text-[#6B7A6E]",
   shipped: "bg-[#E7EDF4] text-[#4A6785]",
   delivered: "bg-[#E4EFE6] text-[#3F7A4F]",
+  invoiced: "bg-[#E6EEE9] text-[#2F5E46]",
   cancelled: "bg-[#FBEAE5] text-[#A64B32]",
   refunded: "bg-[#F3EAE0] text-[#8C6A4A]",
 };
@@ -18,6 +19,7 @@ const STATUS_ICON = {
   processing: Package,
   shipped: Truck,
   delivered: CheckCircle2,
+  invoiced: FileCheck2,
   cancelled: XCircle,
   refunded: XCircle,
 };

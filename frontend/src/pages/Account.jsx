@@ -10,6 +10,7 @@ const STATUS_LABEL = {
   processing: "In lavorazione",
   shipped: "Spedito",
   delivered: "Consegnato",
+  invoiced: "Fatturato",
   cancelled: "Annullato",
   refunded: "Rimborsato",
 };
@@ -18,6 +19,7 @@ const STATUS_COLOR = {
   processing: "bg-[#EAF0EC] text-[#6B7A6E]",
   shipped: "bg-[#E7EDF4] text-[#4A6785]",
   delivered: "bg-[#E4EFE6] text-[#3F7A4F]",
+  invoiced: "bg-[#E6EEE9] text-[#2F5E46]",
   cancelled: "bg-[#FBEAE5] text-[#A64B32]",
   refunded: "bg-[#F3EAE0] text-[#8C6A4A]",
 };

@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ShoppingBag, User, Menu, X, Search, Beaker } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { STORE_COLLECTIONS } from "@/lib/collections";
+import { STORE_COLLECTIONS, collectionLabel } from "@/lib/collections";
 import { useCart } from "@/context/CartContext";
 import { useSamples } from "@/context/SamplesContext";
 import { useAuth } from "@/context/AuthContext";
@@ -58,7 +58,7 @@ export const Header = () => {
                 data-testid="nav-category-link"
                 className="text-sm font-medium text-[#57534E] hover:text-[#1C1917] ci-link-underline transition-colors"
               >
-                {c}
+                {collectionLabel(c)}
               </Link>
             ))}
             <Link
@@ -210,7 +210,7 @@ export const Header = () => {
               onClick={() => setMobileOpen(false)}
               className="block py-2 text-[#1C1917] font-medium"
             >
-              {c}
+              {collectionLabel(c)}
             </Link>
           ))}
           <Link to="/campioni" onClick={() => setMobileOpen(false)} className="block py-2 text-[#1C1917] font-medium">

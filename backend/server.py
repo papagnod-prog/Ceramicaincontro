@@ -83,7 +83,7 @@ def _require_card_enabled():
 
 ORDER_STATUS_LABEL_IT = {
     "pending": "In attesa", "processing": "In lavorazione", "shipped": "Spedito",
-    "delivered": "Consegnato", "cancelled": "Annullato", "refunded": "Rimborsato",
+    "delivered": "Consegnato", "invoiced": "Fatturato", "cancelled": "Annullato", "refunded": "Rimborsato",
 }
 
 
@@ -172,6 +172,7 @@ def _assert_safe_email(subject: str, html: str) -> None:
 def _send_email_smtp_sync(*, to: str, subject: str, html: str, attachments: Optional[list] = None) -> str:
     import smtplib
     import ssl
+    from email.mime.application import MIMEApplication
     from email.mime.image import MIMEImage
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
@@ -187,7 +188,10 @@ def _send_email_smtp_sync(*, to: str, subject: str, html: str, attachments: Opti
     msg["Message-ID"] = msg_id
     msg.attach(MIMEText(html, "html", "utf-8"))
     for a in attachments or []:
-        part = MIMEImage(a["data"], _subtype=a["mime"].split("/")[-1])
+        if a["mime"] == "application/pdf":
+            part = MIMEApplication(a["data"], _subtype="pdf")
+        else:
+            part = MIMEImage(a["data"], _subtype=a["mime"].split("/")[-1])
         part.add_header("Content-Disposition", "attachment", filename=a["filename"])
         msg.attach(part)
 
@@ -198,7 +202,12 @@ def _send_email_smtp_sync(*, to: str, subject: str, html: str, attachments: Opti
     return msg_id
 
 
-async def _send_email_wp_relay(*, to: str, subject: str, html: str, attachments: Optional[list] = None) -> str:
+class EmailAttachmentMissing(RuntimeError):
+    """L'email è partita ma senza (tutti) gli allegati richiesti."""
+
+
+async def _send_email_wp_relay(*, to: str, subject: str, html: str, attachments: Optional[list] = None,
+                               require_attachments: bool = False) -> str:
     import base64
     import hashlib
     import hmac
@@ -214,12 +223,13 @@ async def _send_email_wp_relay(*, to: str, subject: str, html: str, attachments:
         "nonce": secrets.token_hex(16),
     }
     if attachments:
-        # Letti dal modulo WordPress ci-store-mail.php dalla versione 1.1 (le versioni precedenti li ignorano).
+        # Foto lette dal modulo WordPress ci-store-mail.php dalla versione 1.1, PDF dalla 1.2
+        # (le versioni precedenti li ignorano).
         payload["attachments"] = [{"filename": a["filename"], "mime": a["mime"],
                                    "data_b64": base64.b64encode(a["data"]).decode("ascii")} for a in attachments]
     body = json.dumps(payload, separators=(",", ":"))
     sig = hmac.new(WP_MAIL_RELAY_SECRET.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).hexdigest()
-    async with httpx.AsyncClient(timeout=20) as http:
+    async with httpx.AsyncClient(timeout=60 if attachments else 20) as http:
         r = await http.post(WP_MAIL_RELAY_URL, content=body.encode("utf-8"), headers={
             "Content-Type": "application/json",
             "X-CI-Signature": sig,
@@ -232,14 +242,24 @@ async def _send_email_wp_relay(*, to: str, subject: str, html: str, attachments:
     if r.status_code != 200 or not data.get("ok"):
         detail = data.get("message") or data.get("code") or r.text[:200]
         raise RuntimeError(f"relay WordPress HTTP {r.status_code}: {detail}")
+    if require_attachments and attachments:
+        n = data.get("attachments")
+        if n is None:
+            raise EmailAttachmentMissing("email inviata SENZA allegato: aggiorna il modulo WordPress "
+                                         "ci-store-mail.php alla versione 1.2")
+        if int(n) < len(attachments):
+            raise EmailAttachmentMissing(f"email inviata con {int(n)} allegati su {len(attachments)}")
     return str(data.get("id") or payload["nonce"])
 
 
-async def send_email(*, to: str, subject: str, html: str, attachments: Optional[list] = None) -> Optional[str]:
-    """attachments: lista di {"filename", "mime" (image/jpeg|png|webp), "data" (bytes)}."""
+async def send_email(*, to: str, subject: str, html: str, attachments: Optional[list] = None,
+                     require_attachments: bool = False) -> Optional[str]:
+    """attachments: lista di {"filename", "mime" (image/jpeg|png|webp|application/pdf), "data" (bytes)}.
+    require_attachments: con il relay WordPress solleva EmailAttachmentMissing se il modulo non conferma gli allegati."""
     if WP_MAIL_RELAY_URL and WP_MAIL_RELAY_SECRET:
         _assert_safe_email(subject, html)
-        msg_id = await _send_email_wp_relay(to=to, subject=subject, html=html, attachments=attachments)
+        msg_id = await _send_email_wp_relay(to=to, subject=subject, html=html, attachments=attachments,
+                                            require_attachments=require_attachments)
         logger.info(f"Email inviata via WordPress a {to}")
         return msg_id
     if not (SMTP_HOST and SMTP_USER and SMTP_PASSWORD):
@@ -337,7 +357,7 @@ async def _order_email_html(order: dict) -> str:
     return _brand_wrap(inner)
 
 
-def _order_status_email_html(order: dict) -> str:
+def _order_status_email_html(order: dict, attachment_kind: str = "") -> str:
     """Generic status-change notification, sent for every status transition. Always
     includes a link to the public, no-login tracking page for this order."""
     tracking = order.get("tracking", "")
@@ -351,7 +371,9 @@ def _order_status_email_html(order: dict) -> str:
         f'<p style="color:#57534E;font-size:14px;line-height:1.6">Ciao {escape(str(order.get("customer", {}).get("name", "")))}, '
         f'l&rsquo;ordine <strong>{escape(str(order["order_number"]))}</strong> &egrave; ora: <strong>{escape(label)}</strong>.</p>'
         f'{track_line}'
-        f'<p style="margin:24px 0"><a href="{track_url}" '
+        + (f'<p style="color:#57534E;font-size:14px;line-height:1.6">In allegato trovi '
+           f'{"la ricevuta" if attachment_kind == "ricevuta" else "la fattura"}.</p>' if attachment_kind else "")
+        + f'<p style="margin:24px 0"><a href="{track_url}" '
         f'style="background:#1C1917;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
         f'Traccia il tuo ordine</a></p>')
     return _brand_wrap(inner)
@@ -771,7 +793,7 @@ async def compute_regional_shipping(shipping_option_id: str, region: str, lines:
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
-TERMS_VERSION = "2026-10-20"
+TERMS_VERSION = "2026-10-21"
 
 
 def _consent_record(request: Request, kinds: List[str]) -> dict:
@@ -861,6 +883,7 @@ class ProductInput(BaseModel):
     format: str = ""
     finish: str = ""
     color: str = ""
+    tipo: str = ""
     usage: str = ""
     weight_kg: float = Field(ge=0)
     coverage_sqm: float = Field(default=1.0, ge=0)
@@ -1085,23 +1108,50 @@ async def get_collections():
     return sorted(cols)
 
 
+# Valori proposti nel pannello e ordine in cui i filtri li mostrano (i filtri mostrano solo quelli usati).
+PRODUCT_TIPI = ["Pietra", "Legno", "Marmo", "Tinta unita", "Cemento"]
+PRODUCT_COLORS = ["Bianco", "Avorio", "Beige", "Tortora", "Grigio", "Antracite", "Nero", "Marrone", "Cotto",
+                  "Rosso", "Verde", "Blu"]
+PRODUCT_FINISHES = ["Matt", "Lucido"]
+
+
+def _in_order(values, order: list) -> list:
+    vals = {v for v in values if v}
+    return [v for v in order if v in vals] + sorted(v for v in vals if v not in order)
+
+
 @api_router.get("/products")
 async def list_products(collection: Optional[str] = None, finish: Optional[str] = None,
                         format: Optional[str] = None, search: Optional[str] = None,
-                        sort: str = "featured"):
+                        tipo: Optional[str] = None, color: Optional[str] = None,
+                        sort: str = "name"):
     q = {}
     if collection and collection != "all":
         q["collection"] = collection
     if finish and finish != "all":
         q["finish"] = finish
+    if tipo and tipo != "all":
+        q["tipo"] = tipo
+    if color and color != "all":
+        q["color"] = color
     if format and format != "all":
         q["format"] = format
     if search:
         q["name"] = {"$regex": search, "$options": "i"}
-    sort_map = {"price_asc": [("price", 1)], "price_desc": [("price", -1)],
-                "name": [("name", 1)], "featured": [("featured", -1), ("name", 1)]}
-    cursor = db.products.find(q, {"_id": 0}).sort(sort_map.get(sort, sort_map["featured"]))
+    # "In evidenza" non esiste più: sort=featured (vecchi link) e valori sconosciuti -> nome A-Z.
+    sort_map = {"price_asc": [("price", 1)], "price_desc": [("price", -1)], "name": [("name", 1)]}
+    cursor = db.products.find(q, {"_id": 0}).sort(sort_map.get(sort, sort_map["name"]))
     return await cursor.to_list(500)
+
+
+@api_router.get("/products/filters")
+async def product_filters(collection: Optional[str] = None):
+    """Tipi e colori davvero presenti (eventualmente nella collezione scelta), per i filtri del negozio."""
+    q = {"collection": collection} if collection and collection != "all" else {}
+    tipi = await db.products.distinct("tipo", q)
+    colors = await db.products.distinct("color", q)
+    return {"tipi": _in_order(tipi, PRODUCT_TIPI), "colors": _in_order(colors, PRODUCT_COLORS),
+            "finishes": PRODUCT_FINISHES}
 
 
 @api_router.get("/products/{product_id}")
@@ -1127,7 +1177,10 @@ async def create_product(data: ProductInput, admin: dict = Depends(require_admin
 
 @api_router.put("/admin/products/{product_id}")
 async def update_product(product_id: str, data: ProductInput, admin: dict = Depends(require_admin)):
-    res = await db.products.update_one({"id": product_id}, {"$set": data.model_dump()})
+    upd = data.model_dump()
+    if "featured" not in data.model_fields_set:
+        upd.pop("featured")  # campo non più usato dal pannello: resta com'è
+    res = await db.products.update_one({"id": product_id}, {"$set": upd})
     if res.matched_count == 0:
         raise HTTPException(404, "Prodotto non trovato")
     return await db.products.find_one({"id": product_id}, {"_id": 0})
@@ -1684,9 +1737,12 @@ async def stripe_webhook(request: Request):
 # ---------------------------------------------------------------------------
 # Orders
 # ---------------------------------------------------------------------------
+_CUSTOMER_HIDDEN = {"invoice": 0, "invoice_email": 0}  # fattura/ricevuta: solo nel pannello admin
+
+
 @api_router.get("/orders")
 async def my_orders(user: dict = Depends(require_user)):
-    cursor = db.orders.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1)
+    cursor = db.orders.find({"user_id": user["id"]}, {"_id": 0, **_CUSTOMER_HIDDEN}).sort("created_at", -1)
     return await cursor.to_list(200)
 
 
@@ -1695,6 +1751,9 @@ async def get_order(order_id: str, user: dict = Depends(require_user)):
     o = await db.orders.find_one({"id": order_id}, {"_id": 0})
     if not o or (o.get("user_id") != user["id"] and user.get("role") != "admin"):
         raise HTTPException(404, "Ordine non trovato")
+    if user.get("role") != "admin":
+        for k in _CUSTOMER_HIDDEN:
+            o.pop(k, None)
     return o
 
 
@@ -1737,6 +1796,8 @@ async def update_order_status(order_id: str, data: OrderStatusInput, admin: dict
     before = await db.orders.find_one({"id": order_id}, {"_id": 0})
     if not before:
         raise HTTPException(404, "Ordine non trovato")
+    if data.status == "invoiced" and not await db.order_invoices.find_one({"order_id": order_id}, {"_id": 1}):
+        raise HTTPException(400, "Allega prima la fattura o la ricevuta")
     res = await db.orders.update_one(
         {"id": order_id},
         {"$set": {"status": data.status, "tracking": data.tracking, "updated_at": now_utc().isoformat()}})
@@ -1744,7 +1805,7 @@ async def update_order_status(order_id: str, data: OrderStatusInput, admin: dict
         raise HTTPException(404, "Ordine non trovato")
     # Bonifico: quando l'amministratore mette l'ordine "In lavorazione" (o spedito/consegnato)
     # il bonifico vale come ricevuto -> pagamento segnato "paid" + avviso "Pagamento ricevuto".
-    if (data.status in ("processing", "shipped", "delivered")
+    if (data.status in ("processing", "shipped", "delivered", "invoiced")
             and before.get("payment_method") == "bank_transfer"
             and before.get("payment_status") == "awaiting_transfer"):
         paid = await db.orders.update_one(
@@ -1757,11 +1818,144 @@ async def update_order_status(order_id: str, data: OrderStatusInput, admin: dict
     # Notify the customer by email on every status change, with a link to the public
     # order-tracking page (no login required).
     if before.get("status") != data.status and order.get("customer", {}).get("email"):
-        label = ORDER_STATUS_LABEL_IT.get(data.status, data.status)
-        await _safe_send(order["customer"]["email"],
-                         f"Ordine {order['order_number']} — {label} — Ceramica Incontro",
-                         _order_status_email_html(order))
+        if data.status == "invoiced":
+            # Fatturato: email con il PDF allegato; esito salvato nell'ordine (invoice_email).
+            await _send_invoice_email(order)
+            order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+        else:
+            label = ORDER_STATUS_LABEL_IT.get(data.status, data.status)
+            await _safe_send(order["customer"]["email"],
+                             f"Ordine {order['order_number']} — {label} — Ceramica Incontro",
+                             _order_status_email_html(order))
     return order
+
+
+# ---------------------------------------------------------------------------
+# Fattura / ricevuta dell'ordine (PDF caricato dall'amministratore, solo admin può scaricarlo)
+# ---------------------------------------------------------------------------
+INVOICE_MAX_BYTES = 4 * 1024 * 1024
+INVOICE_KINDS = {"fattura": "Fattura", "ricevuta": "Ricevuta"}
+
+
+class InvoiceInput(BaseModel):
+    kind: str
+    filename: str = ""
+    data_b64: str = ""  # PDF in base64 (anche "data:application/pdf;base64,..."); vuoto = cambia solo il tipo
+
+
+def _invoice_meta(doc: dict) -> dict:
+    return {"kind": doc["kind"], "filename": doc["filename"], "size": doc["size"], "uploaded_at": doc["uploaded_at"]}
+
+
+def _invoice_filename(name: str, kind: str, order: dict) -> str:
+    base = re.sub(r"\.pdf$", "", (name or "").strip(), flags=re.I)
+    base = re.sub(r"[^A-Za-z0-9._-]+", "-", base).strip("-._")[:80]
+    if not base:
+        base = f"{INVOICE_KINDS[kind]}-{order['order_number']}"
+    return base + ".pdf"
+
+
+async def _admin_order(order_id: str) -> dict:
+    o = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not o:
+        raise HTTPException(404, "Ordine non trovato")
+    return o
+
+
+async def _send_invoice_email(order: dict) -> dict:
+    """Email "Fatturato" con il PDF allegato. Salva l'esito in order.invoice_email e lo restituisce."""
+    inv = await db.order_invoices.find_one({"order_id": order["id"]}, {"_id": 0})
+    to = order.get("customer", {}).get("email", "")
+    rec = {"at": now_utc().isoformat(), "to": to, "ok": False, "attachment": False, "error": ""}
+    if not inv:
+        rec["error"] = "Nessun PDF allegato all'ordine"
+    elif not to:
+        rec["error"] = "L'ordine non ha un indirizzo email"
+    else:
+        shown = dict(order, status="invoiced")
+        label = ORDER_STATUS_LABEL_IT["invoiced"]
+        try:
+            msg_id = await send_email(
+                to=to, subject=f"Ordine {order['order_number']} — {label} — Ceramica Incontro",
+                html=_order_status_email_html(shown, attachment_kind=inv["kind"]),
+                attachments=[{"filename": inv["filename"], "mime": "application/pdf", "data": bytes(inv["data"])}],
+                require_attachments=True)
+            if msg_id is None:
+                rec["error"] = "Email non configurata sul server: nessuna email inviata"
+            else:
+                rec.update(ok=True, attachment=True)
+        except EmailAttachmentMissing as e:
+            rec.update(ok=True, attachment=False, error=str(e))
+        except Exception as e:
+            rec["error"] = f"Email non inviata: {e}"
+    if rec["error"]:
+        logger.error(f"Email fattura ordine {order.get('order_number')}: {rec['error']}")
+    await db.orders.update_one({"id": order["id"]}, {"$set": {"invoice_email": rec}})
+    return rec
+
+
+@api_router.put("/admin/orders/{order_id}/invoice")
+async def admin_upload_invoice(order_id: str, data: InvoiceInput, admin: dict = Depends(require_admin)):
+    import base64
+    import binascii
+    order = await _admin_order(order_id)
+    kind = (data.kind or "").strip().lower()
+    if kind not in INVOICE_KINDS:
+        raise HTTPException(400, "Scegli Fattura o Ricevuta")
+    existing = await db.order_invoices.find_one({"order_id": order_id}, {"_id": 0, "data": 0})
+    raw_b64 = (data.data_b64 or "").strip()
+    if not raw_b64:
+        if not existing:
+            raise HTTPException(400, "Scegli il file PDF da allegare")
+        await db.order_invoices.update_one({"order_id": order_id}, {"$set": {"kind": kind}})
+        existing["kind"] = kind
+        meta = _invoice_meta(existing)
+    else:
+        if raw_b64.startswith("data:"):
+            raw_b64 = raw_b64.split(",", 1)[-1]
+        if len(raw_b64) > (INVOICE_MAX_BYTES * 4) // 3 + 8:
+            raise HTTPException(400, "Il PDF supera i 4 MB")
+        try:
+            raw = base64.b64decode(raw_b64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(400, "File non valido")
+        if len(raw) > INVOICE_MAX_BYTES:
+            raise HTTPException(400, "Il PDF supera i 4 MB")
+        if not raw.startswith(b"%PDF-"):
+            raise HTTPException(400, "Il file non è un PDF valido")
+        doc = {"order_id": order_id, "kind": kind, "filename": _invoice_filename(data.filename, kind, order),
+               "size": len(raw), "data": raw, "uploaded_at": now_utc().isoformat(), "uploaded_by": admin.get("email", "")}
+        await db.order_invoices.replace_one({"order_id": order_id}, doc, upsert=True)
+        meta = _invoice_meta(doc)
+    await db.orders.update_one({"id": order_id}, {"$set": {"invoice": meta}})
+    return meta
+
+
+@api_router.get("/admin/orders/{order_id}/invoice")
+async def admin_get_invoice(order_id: str, admin: dict = Depends(require_admin)):
+    inv = await db.order_invoices.find_one({"order_id": order_id}, {"_id": 0})
+    if not inv:
+        raise HTTPException(404, "Nessun PDF allegato")
+    return Response(content=bytes(inv["data"]), media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{inv["filename"]}"',
+                             "Cache-Control": "no-store"})
+
+
+@api_router.delete("/admin/orders/{order_id}/invoice")
+async def admin_delete_invoice(order_id: str, admin: dict = Depends(require_admin)):
+    await _admin_order(order_id)
+    await db.order_invoices.delete_one({"order_id": order_id})
+    await db.orders.update_one({"id": order_id}, {"$unset": {"invoice": ""}})
+    return {"ok": True}
+
+
+@api_router.post("/admin/orders/{order_id}/invoice/send")
+async def admin_resend_invoice(order_id: str, admin: dict = Depends(require_admin)):
+    order = await _admin_order(order_id)
+    if not await db.order_invoices.find_one({"order_id": order_id}, {"_id": 1}):
+        raise HTTPException(400, "Allega prima la fattura o la ricevuta")
+    await _send_invoice_email(order)
+    return await db.orders.find_one({"id": order_id}, {"_id": 0})
 
 
 # ---------------------------------------------------------------------------
@@ -1840,11 +2034,12 @@ def _withdrawal_receipt_html(order: dict, w: dict) -> str:
         + note +
         '<h2 style="font-size:15px;color:#1C1917;margin:20px 0 6px">Cosa succede ora</h2>'
         '<p style="color:#57534E;font-size:14px;line-height:1.6">Ti contatteremo per concordare il ritiro o la '
-        'spedizione del reso. Devi restituire i beni entro 14 giorni da oggi, integri e nell&rsquo;imballo originale; '
-        'le spese di restituzione sono a carico del cliente (se un prodotto è arrivato danneggiato o non conforme, '
-        'la spedizione del reso è a carico nostro). Rimborsiamo i pagamenti, comprese le spese di consegna '
-        'standard, entro 14 giorni da oggi, con lo stesso mezzo di pagamento (o bonifico); possiamo attendere di '
-        'ricevere i beni prima del rimborso. Il diritto di recesso spetta ai consumatori e non si applica ai prodotti '
+        'spedizione del reso. Devi restituire i beni entro 14 giorni da oggi, integri e nell&rsquo;imballo originale.</p>'
+        '<p style="color:#57534E;font-size:14px;line-height:1.6">Rimborsiamo tutti i pagamenti ricevuti, comprese le '
+        'spese di consegna standard; le spese di restituzione sono a carico dell&rsquo;acquirente. Il rimborso avviene '
+        'una volta ricevuta la merce e verificata la sua integrit&agrave;. Il rimborso arriva entro 14 giorni da oggi, '
+        'con lo stesso mezzo di pagamento (o bonifico). Se un prodotto è arrivato danneggiato o non conforme, la '
+        'spedizione del reso è a carico nostro. Il diritto di recesso spetta ai consumatori e non si applica ai prodotti '
         'su misura o realizzati apposta per il cliente.</p>'
         f'<p style="margin:24px 0"><a href="{STORE_URL}/recesso" '
         'style="background:#C05A3E;color:#fff;text-decoration:none;padding:12px 24px;font-size:14px;display:inline-block">'
@@ -2200,6 +2395,39 @@ async def seed_products():
         await db.products.insert_one(doc)
 
 
+PRODUCT_ATTRS_FILE = ROOT_DIR / "product_attributes.json"
+_CODE_AT_END = re.compile(r"(\d{2}[A-Z]{1,2}\d{3,})\s*$")
+
+
+async def autofill_product_attributes() -> int:
+    """Tipo e colore dalla tabella approvata (product_attributes.json). Riempie solo i campi vuoti e
+    lavora una sola volta per prodotto (segno attrs_autofill): non tocca mai i valori scelti nel pannello."""
+    import json
+    try:
+        rows = json.loads(PRODUCT_ATTRS_FILE.read_text(encoding="utf-8")).get("products", [])
+    except FileNotFoundError:
+        return 0
+    by_id = {r["id"]: r for r in rows if r.get("id")}
+    by_code = {r["code"].upper(): r for r in rows if r.get("code")}
+    done = 0
+    async for p in db.products.find({"attrs_autofill": {"$exists": False}},
+                                    {"_id": 0, "id": 1, "name": 1, "tipo": 1, "color": 1}):
+        m = _CODE_AT_END.search(p.get("name") or "")
+        r = by_id.get(p.get("id")) or (by_code.get(m.group(1).upper()) if m else None)
+        if not r:
+            continue
+        upd = {"attrs_autofill": now_utc().isoformat()}
+        if not (p.get("tipo") or "").strip() and r.get("tipo"):
+            upd["tipo"] = r["tipo"]
+        if not (p.get("color") or "").strip() and r.get("color"):
+            upd["color"] = r["color"]
+        await db.products.update_one({"id": p["id"], "attrs_autofill": {"$exists": False}}, {"$set": upd})
+        done += 1
+    if done:
+        logger.info(f"Tipo/colore compilati automaticamente su {done} prodotti.")
+    return done
+
+
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
@@ -2225,8 +2453,13 @@ async def startup():
     await db.assistant_chats.create_index("updated_at")
     await db.assistant_photos.create_index("expires_at", expireAfterSeconds=0)
     await db.assistant_photos.create_index("chat_id")
+    await db.order_invoices.create_index("order_id", unique=True)
     await seed_admin()
     await seed_products()
+    try:
+        await autofill_product_attributes()
+    except Exception as e:
+        logger.error(f"Compilazione automatica tipo/colore non riuscita: {e}")
     asyncio.create_task(_payment_watch_loop())
     logger.info("Ceramica Incontro shop ready.")
 

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { eur } from "@/lib/api";
+import { collectionLabel } from "@/lib/collections";
 import { Plus } from "lucide-react";
 
 export const ProductCard = ({ product, index = 0 }) => {
@@ -12,12 +13,12 @@ export const ProductCard = ({ product, index = 0 }) => {
       style={{ animationDelay: `${Math.min(index * 60, 400)}ms` }}
     >
       <Link to={`/prodotto/${product.id}`} className="block">
-        <div className="relative overflow-hidden bg-[#F1EEE8] aspect-[4/5] mb-4">
+        <div className="relative overflow-hidden bg-[#F1EEE8] h-[140px] sm:h-[220px] mb-4 flex items-center justify-center px-4 pt-11 pb-4 sm:px-10 sm:py-8">
           {product.image ? (
             <img
               src={product.image}
               alt={product.name}
-              className="ci-hover-img w-full h-full object-cover"
+              className="ci-hover-img block max-w-full max-h-full w-auto h-auto object-contain"
               loading="lazy"
             />
           ) : (
@@ -26,7 +27,7 @@ export const ProductCard = ({ product, index = 0 }) => {
             </div>
           )}
           <span className="absolute top-3 left-3 bg-white/90 backdrop-blur px-3 py-1 eyebrow text-[0.6rem] text-[#1C1917]">
-            {product.collection}
+            {collectionLabel(product.collection)}
           </span>
           <button
             data-testid="quick-add-btn"

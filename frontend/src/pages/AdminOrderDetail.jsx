@@ -1,18 +1,178 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import api, { eur } from "@/lib/api";
+import api, { eur, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, FileText, Printer, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { paymentLabel } from "@/lib/payment";
 
-const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "cancelled", "refunded"];
+const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "invoiced", "cancelled", "refunded"];
 const STATUS_LABEL = {
   pending: "In attesa", processing: "In lavorazione", shipped: "Spedito",
-  delivered: "Consegnato", cancelled: "Annullato", refunded: "Rimborsato",
+  delivered: "Consegnato", invoiced: "Fatturato", cancelled: "Annullato", refunded: "Rimborsato",
 };
+/** Messaggio dopo il cambio di stato: per "Fatturato" dice se l'email con il PDF è partita. */
+const statusToast = (status, order) => {
+  if (status !== "invoiced") return toast.success("Stato aggiornato");
+  const r = order?.invoice_email;
+  if (r && !r.ok) return toast.error(`Stato aggiornato, ma ${r.error || "email non inviata"}`);
+  return toast.success("Stato aggiornato · email con il PDF inviata al cliente");
+};
+
+const MAX_PDF = 4 * 1024 * 1024;
+const KIND_LABEL = { fattura: "Fattura", ricevuta: "Ricevuta" };
+
+const readBase64 = (file) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(",")[1] || "");
+  r.onerror = () => reject(r.error);
+  r.readAsDataURL(file);
+});
+
+const apiError = (err) => toast.error(formatApiErrorDetail(err.response?.data?.detail));
+
+/** Fattura o ricevuta (PDF) dell'ordine: la vede solo l'amministratore, al cliente arriva per email. */
+function InvoiceBox({ order, onChange }) {
+  const inv = order.invoice;
+  const sent = order.invoice_email;
+  const [kind, setKind] = useState(inv?.kind || (order.billing?.is_business ? "fattura" : "ricevuta"));
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+
+  useEffect(() => { if (inv?.kind) setKind(inv.kind); }, [inv?.kind]);
+
+  const upload = async (file) => {
+    if (fileRef.current) fileRef.current.value = "";
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name)) return toast.error("Scegli un file PDF");
+    if (file.size > MAX_PDF) return toast.error("Il PDF supera i 4 MB");
+    setBusy(true);
+    try {
+      const data_b64 = await readBase64(file);
+      await api.put(`/admin/orders/${order.id}/invoice`, { kind, filename: file.name, data_b64 });
+      toast.success(inv ? "PDF sostituito" : "PDF allegato");
+      onChange();
+    } catch (err) {
+      apiError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changeKind = async (k) => {
+    setKind(k);
+    if (!inv || inv.kind === k) return;
+    try {
+      await api.put(`/admin/orders/${order.id}/invoice`, { kind: k, filename: "", data_b64: "" });
+      onChange();
+    } catch (err) {
+      setKind(inv.kind);
+      apiError(err);
+    }
+  };
+
+  const openPdf = async () => {
+    const w = window.open("", "_blank");
+    try {
+      const { data } = await api.get(`/admin/orders/${order.id}/invoice`, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+      if (w) w.location.href = url; else window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      if (w) w.close();
+      toast.error("PDF non disponibile");
+    }
+  };
+
+  const removePdf = async () => {
+    if (!window.confirm("Togliere il PDF allegato a questo ordine?")) return;
+    try {
+      await api.delete(`/admin/orders/${order.id}/invoice`);
+      toast.success("PDF tolto");
+      onChange();
+    } catch (err) {
+      apiError(err);
+    }
+  };
+
+  const resend = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.post(`/admin/orders/${order.id}/invoice/send`);
+      const r = data?.invoice_email;
+      if (r && !r.ok) toast.error(r.error || "Email non inviata"); else toast.success("Email con il PDF inviata");
+      onChange();
+    } catch (err) {
+      apiError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="no-print mt-6 border border-[#E2DDD5] bg-white p-6" data-testid="invoice-box">
+      <h2 className="text-xs uppercase tracking-wide text-[#78716C] mb-3 font-medium">Fattura o ricevuta (PDF)</h2>
+      <div className="flex flex-wrap items-center gap-5 mb-4 text-sm" role="radiogroup" aria-label="Tipo di documento">
+        {Object.entries(KIND_LABEL).map(([k, l]) => (
+          <label key={k} className="inline-flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="invoice-kind" value={k} checked={kind === k} onChange={() => changeKind(k)}
+              className="accent-[#C05A3E]" data-testid={`invoice-kind-${k}`} />
+            {l}
+          </label>
+        ))}
+      </div>
+
+      <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden" data-testid="invoice-file"
+        onChange={(e) => upload(e.target.files?.[0])} />
+
+      {inv ? (
+        <div className="flex flex-wrap items-center gap-3" data-testid="invoice-current">
+          <FileText className="w-5 h-5 text-[#C05A3E] shrink-0" />
+          <div className="text-sm mr-auto">
+            <div className="font-medium text-[#1C1917]">{KIND_LABEL[inv.kind]}: {inv.filename}</div>
+            <div className="text-xs text-[#78716C]">
+              {(inv.size / 1024).toFixed(0)} KB · caricato il {new Date(inv.uploaded_at).toLocaleString("it-IT")}
+            </div>
+          </div>
+          <button type="button" onClick={openPdf} data-testid="invoice-open"
+            className="text-sm px-3 py-2 border border-[#E2DDD5] hover:bg-[#F1EEE8]">Apri</button>
+          <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} data-testid="invoice-replace"
+            className="text-sm px-3 py-2 border border-[#E2DDD5] hover:bg-[#F1EEE8] disabled:opacity-50">Sostituisci</button>
+          <button type="button" disabled={busy} onClick={removePdf} data-testid="invoice-remove"
+            className="text-sm px-3 py-2 border border-[#E2DDD5] text-[#A64B32] hover:bg-[#FBEAE5] disabled:opacity-50">Togli</button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} data-testid="invoice-upload"
+            className="inline-flex items-center gap-2 bg-[#1C1917] text-white text-sm px-4 py-2 hover:bg-[#3D3835] disabled:opacity-50">
+            <Upload className="w-4 h-4" /> {busy ? "Caricamento…" : "Allega PDF"}
+          </button>
+          <span className="text-xs text-[#78716C]">Solo PDF, massimo 4 MB. Il cliente lo riceve per email quando l'ordine passa a «Fatturato».</span>
+        </div>
+      )}
+
+      {sent && (
+        <div data-testid="invoice-email-result"
+          className={`mt-4 p-3 text-sm flex flex-wrap items-center gap-3 ${sent.ok ? "bg-[#E6EEE9] text-[#2F5E46]" : "bg-[#FBEAE5] text-[#A64B32]"}`}>
+          <span className="mr-auto">
+            {sent.ok
+              ? `Email con il PDF inviata a ${sent.to} il ${new Date(sent.at).toLocaleString("it-IT")}.`
+              : `Email NON inviata (${new Date(sent.at).toLocaleString("it-IT")}): ${sent.error || "errore sconosciuto"}`}
+          </span>
+          {inv && (
+            <button type="button" disabled={busy} onClick={resend} data-testid="invoice-resend"
+              className="text-sm px-3 py-1.5 bg-white border border-current hover:opacity-80 disabled:opacity-50">
+              {busy ? "Invio…" : "Invia di nuovo"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function AdminOrderDetail() {
   usePageTitle("Dettaglio ordine");
@@ -34,8 +194,12 @@ export default function AdminOrderDetail() {
   useEffect(() => { if (user?.role === "admin") load(); }, [user, orderId]);
 
   const updateStatus = async (status) => {
-    await api.put(`/admin/orders/${orderId}/status`, { status, tracking: order.tracking || "" });
-    toast.success("Stato aggiornato");
+    try {
+      const { data } = await api.put(`/admin/orders/${orderId}/status`, { status, tracking: order.tracking || "" });
+      statusToast(status, data);
+    } catch (err) {
+      apiError(err);
+    }
     load();
   };
 
@@ -176,9 +340,16 @@ export default function AdminOrderDetail() {
           <Select value={order.status} onValueChange={updateStatus}>
             <SelectTrigger data-testid="admin-order-detail-status" className="h-10 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-white">
-              {STATUS_OPTS.map((s) => (<SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>))}
+              {STATUS_OPTS.map((s) => (s === "invoiced" && !order.invoice && order.status !== "invoiced"
+                ? <SelectItem key={s} value={s} disabled>Fatturato (allega prima il PDF)</SelectItem>
+                : <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>))}
             </SelectContent>
           </Select>
+          {!order.invoice && order.status !== "invoiced" && (
+            <p data-testid="invoice-needed-hint" className="text-xs text-[#78716C] mt-1.5">
+              Per «Fatturato» allega prima la fattura o la ricevuta qui sotto.
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-[#78716C] mb-1.5">Codice tracking</label>
@@ -193,6 +364,8 @@ export default function AdminOrderDetail() {
           </div>
         </div>
       </div>
+
+      <InvoiceBox order={order} onChange={load} />
     </div>
   );
 }

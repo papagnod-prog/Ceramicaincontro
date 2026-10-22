@@ -1,7 +1,4 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "@/lib/api";
-import { ProductCard } from "@/components/shop/ProductCard";
 import { ArrowRight } from "lucide-react";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
@@ -13,12 +10,7 @@ const COLLECTION_TILES = [
 ];
 
 export default function Home() {
-  const [featured, setFeatured] = useState([]);
   usePageTitle(null);
-
-  useEffect(() => {
-    api.get("/products?sort=featured").then(({ data }) => setFeatured(data.filter((p) => p.featured).slice(0, 8)));
-  }, []);
 
   return (
     <div data-testid="home-page">
@@ -72,19 +64,6 @@ export default function Home() {
                 <h3 className="font-serif-display text-white text-2xl lg:text-3xl">{c.name}</h3>
               </div>
             </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Featured products */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="mb-10">
-          <p className="eyebrow text-[#C05A3E] mb-2">In evidenza</p>
-          <h2 className="font-serif-display text-4xl lg:text-5xl font-light">Prodotti selezionati</h2>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-          {featured.map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
           ))}
         </div>
       </section>

@@ -1,0 +1,515 @@
+{
+ "source": "Tabella tipo/colore approvata il 21/10/2026",
+ "products": [
+  {
+   "id": "9e0c7186-2817-40e8-9e28-1d869dd27321",
+   "code": "60S001",
+   "tipo": "Tinta unita",
+   "color": "Bianco"
+  },
+  {
+   "id": "b1227a9d-5814-4a60-8d1e-737e7c765fb6",
+   "code": "60S002",
+   "tipo": "Tinta unita",
+   "color": "Avorio"
+  },
+  {
+   "id": "78ac735d-5771-482a-9d87-f6252c45f632",
+   "code": "60S003",
+   "tipo": "Tinta unita",
+   "color": "Avorio"
+  },
+  {
+   "id": "d3b7aa71-5fcd-4c17-82a6-23629e08eb24",
+   "code": "60S007",
+   "tipo": "Tinta unita",
+   "color": "Grigio"
+  },
+  {
+   "id": "3446ba1a-2a4a-4167-b4ef-8a004fb57a23",
+   "code": "60S009",
+   "tipo": "Tinta unita",
+   "color": "Nero"
+  },
+  {
+   "id": "14bfffef-78a7-47da-88e0-2a37be4e7f6b",
+   "code": "60S010",
+   "tipo": "Tinta unita",
+   "color": "Bianco"
+  },
+  {
+   "id": "ba4508a2-3ce3-446d-830e-3a4c926548ef",
+   "code": "60SC002",
+   "tipo": "Cemento",
+   "color": "Avorio"
+  },
+  {
+   "id": "4f5fd0e9-bbd5-4058-bdfa-81c7cb89a700",
+   "code": "60SC003",
+   "tipo": "Cemento",
+   "color": "Bianco"
+  },
+  {
+   "id": "d086f502-a220-4284-bc19-66204c87ad18",
+   "code": "60SC004",
+   "tipo": "Cemento",
+   "color": "Avorio"
+  },
+  {
+   "id": "1d28b531-a613-4d4a-b468-1eb7642ac43e",
+   "code": "60SC005",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "d18e0c36-12ac-45d0-835e-043d46ab72d8",
+   "code": "60SC006",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "fd1cda2b-9b8e-4352-a13d-2037c3b7e5ee",
+   "code": "60SC007",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "f4aa3438-9a3a-4e6d-a58f-7c9fda68d4ee",
+   "code": "60SC008",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "b4f71d12-7eb6-4676-b291-b9fb9d0cdaf1",
+   "code": "60SC009",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "f91f49dd-57b9-42c3-ac65-8307b53a532b",
+   "code": "60SC011",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "70d49e73-6e30-4a98-8984-60e808c3a7de",
+   "code": "60SC012",
+   "tipo": "Cemento",
+   "color": "Beige"
+  },
+  {
+   "id": "84457740-4691-4b4e-b712-67c98f1c1c01",
+   "code": "60SC013",
+   "tipo": "Cemento",
+   "color": "Beige"
+  },
+  {
+   "id": "efbf3bae-9834-4939-b5e4-1cfc8c073991",
+   "code": "60SC014",
+   "tipo": "Cemento",
+   "color": "Tortora"
+  },
+  {
+   "id": "7861c88c-8246-4d9f-94bc-3aaaa6823861",
+   "code": "60SC017",
+   "tipo": "Cemento",
+   "color": "Avorio"
+  },
+  {
+   "id": "373f8c4c-1a2a-4df7-9837-f1bf7768b09f",
+   "code": "60SC018",
+   "tipo": "Cemento",
+   "color": "Tortora"
+  },
+  {
+   "id": "5f8e1f94-0063-4c3b-aa6e-028ff4723af6",
+   "code": "60SC019",
+   "tipo": "Cemento",
+   "color": "Beige"
+  },
+  {
+   "id": "3625ea42-dc06-4f24-8a24-004ebe1f2aad",
+   "code": "60SC020",
+   "tipo": "Cemento",
+   "color": "Avorio"
+  },
+  {
+   "id": "d403cb8c-3e9b-4449-8b12-e0ff52be19c8",
+   "code": "60SC021",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "31b20982-b24a-461b-9421-61ab37b012e5",
+   "code": "60SC022",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "3d7adfb5-de19-4c12-b827-7169e7d562db",
+   "code": "60SC023",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "d4e95044-d8d4-4e32-a4c7-83b7d3508036",
+   "code": "60SC024",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "ae9fb9a0-72d2-478f-af3a-9ef5897acfb1",
+   "code": "60SC025",
+   "tipo": "Cemento",
+   "color": "Antracite"
+  },
+  {
+   "id": "21236886-4e8f-4e0f-8479-d047b9f4bafa",
+   "code": "60SC026",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "55eec5e4-06d2-4df5-89d7-0e11881fa2ce",
+   "code": "60SL003",
+   "tipo": "Legno",
+   "color": "Tortora"
+  },
+  {
+   "id": "253295ec-3628-4b72-98d4-d63e9d1f7da2",
+   "code": "60SL004",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "e1f880a4-8551-4c33-9280-1ca386a91199",
+   "code": "60SL005",
+   "tipo": "Legno",
+   "color": "Marrone"
+  },
+  {
+   "id": "d43e25a4-d70f-4533-9636-edf3f3a55d54",
+   "code": "60SL006",
+   "tipo": "Legno",
+   "color": "Tortora"
+  },
+  {
+   "id": "f7177cb7-1754-4f72-90ac-4f36715a8e33",
+   "code": "60SL007",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "f8d12a67-8d02-4c84-8e63-c6350a1c5d02",
+   "code": "60SL008",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "35e3d02a-5345-4751-9752-6c353ec91ceb",
+   "code": "60SL009",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "2e796fd5-babc-4de7-b7b0-2daf53a73f73",
+   "code": "60SL010",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "0605d4a2-18da-47d8-a563-447926f1200b",
+   "code": "60SL011",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "fbe81639-fd32-4548-bf36-70bc78a90acc",
+   "code": "60SL012",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "0a6737b5-6396-460a-b93a-1ad6cd6be9ba",
+   "code": "60SL013",
+   "tipo": "Legno",
+   "color": "Tortora"
+  },
+  {
+   "id": "c0910445-92da-4beb-9398-34b39c7c276f",
+   "code": "60SL014",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "f1e2ffbd-7546-41c4-bea7-f36e336b77b1",
+   "code": "60SL015",
+   "tipo": "Legno",
+   "color": "Beige"
+  },
+  {
+   "id": "f405d782-0efa-48c6-8fc4-32c05d20b48d",
+   "code": "60SL016",
+   "tipo": "Legno",
+   "color": "Marrone"
+  },
+  {
+   "id": "8d0c6ff6-3d73-4f75-a354-c40e832fb90e",
+   "code": "60SL017",
+   "tipo": "Legno",
+   "color": "Tortora"
+  },
+  {
+   "id": "ae6a210e-aa99-470f-a39a-ec98adf07ece",
+   "code": "60SL018",
+   "tipo": "Legno",
+   "color": "Bianco"
+  },
+  {
+   "id": "f97418b1-6c4f-4cbb-9209-8570b5eeb61a",
+   "code": "60SL020",
+   "tipo": "Legno",
+   "color": "Grigio"
+  },
+  {
+   "id": "8f98fe2a-b640-4c8c-860c-7a549901d032",
+   "code": "60SL021",
+   "tipo": "Legno",
+   "color": "Tortora"
+  },
+  {
+   "id": "ff24b801-8ad5-472e-8ea5-849ce2c927a0",
+   "code": "60SL022",
+   "tipo": "Legno",
+   "color": "Grigio"
+  },
+  {
+   "id": "9e2c9679-c89a-4044-b3a5-3ee4947ae1f7",
+   "code": "60SL023",
+   "tipo": "Legno",
+   "color": "Grigio"
+  },
+  {
+   "id": "5f3ee001-ad81-40df-b0bd-ef7182d00fb2",
+   "code": "60SL024",
+   "tipo": "Legno",
+   "color": "Grigio"
+  },
+  {
+   "id": "82ecc511-0590-4f3f-b862-ad68c5448bf3",
+   "code": "60SL025",
+   "tipo": "Legno",
+   "color": "Tortora"
+  },
+  {
+   "id": "394c09a6-db91-4303-ae7e-8464faf3275b",
+   "code": "60SM001",
+   "tipo": "Marmo",
+   "color": "Bianco"
+  },
+  {
+   "id": "499e537c-f223-4fda-b115-13578e41a53a",
+   "code": "60SM002",
+   "tipo": "Marmo",
+   "color": "Bianco"
+  },
+  {
+   "id": "13e491f2-36f8-4ad8-a62d-ef62a3d29e4a",
+   "code": "60SM006",
+   "tipo": "Marmo",
+   "color": "Avorio"
+  },
+  {
+   "id": "87e7977f-2689-4736-8a33-f17780358d96",
+   "code": "60SM010",
+   "tipo": "Marmo",
+   "color": "Bianco"
+  },
+  {
+   "id": "cc407240-57af-4955-b25b-d2fbd2d6ecd2",
+   "code": "60SM011",
+   "tipo": "Marmo",
+   "color": "Bianco"
+  },
+  {
+   "id": "3de29bbb-a8e8-4908-a5e0-480764b2cb2e",
+   "code": "60SM012",
+   "tipo": "Marmo",
+   "color": "Bianco"
+  },
+  {
+   "id": "b26d9865-b351-44d6-9b08-9ede59eb0eb8",
+   "code": "60SP001",
+   "tipo": "Pietra",
+   "color": "Beige"
+  },
+  {
+   "id": "f32eb451-bfb6-41ea-a832-b9835da0de35",
+   "code": "60SP005",
+   "tipo": "Pietra",
+   "color": "Grigio"
+  },
+  {
+   "id": "9551acc5-280f-4e90-9cc3-6d3147c61317",
+   "code": "60SP007",
+   "tipo": "Pietra",
+   "color": "Grigio"
+  },
+  {
+   "id": "750f1b03-2464-4055-8b77-a5ff31973e98",
+   "code": "60SP008",
+   "tipo": "Pietra",
+   "color": "Grigio"
+  },
+  {
+   "id": "52b7dcb6-dd82-40db-ae1e-c9ce56cbe204",
+   "code": "60SP009",
+   "tipo": "Pietra",
+   "color": "Grigio"
+  },
+  {
+   "id": "5d858f79-91a7-49d6-8298-f20ebf2366e3",
+   "code": "33A000",
+   "tipo": "Tinta unita",
+   "color": "Bianco"
+  },
+  {
+   "id": "d5a5c178-144e-4709-9c0e-092e0755af75",
+   "code": "33A001",
+   "tipo": "Tinta unita",
+   "color": "Bianco"
+  },
+  {
+   "id": "04b28955-89e6-42d4-9212-37cd46002207",
+   "code": "33A002",
+   "tipo": "Tinta unita",
+   "color": "Grigio"
+  },
+  {
+   "id": "86efc9f9-4f1a-4be8-a3ef-dc5b7dd71bf5",
+   "code": "33C301",
+   "tipo": "Cemento",
+   "color": "Bianco"
+  },
+  {
+   "id": "9340fece-0797-4083-8595-be67210f3ac0",
+   "code": "33C310",
+   "tipo": "Cemento",
+   "color": "Grigio"
+  },
+  {
+   "id": "6ea0eeef-cce7-497e-a6c4-878045243e95",
+   "code": "33C315",
+   "tipo": "Cemento",
+   "color": "Antracite"
+  },
+  {
+   "id": "514a4b28-2f7b-4724-86b4-310c4c214176",
+   "code": "33C317",
+   "tipo": "Cemento",
+   "color": "Beige"
+  },
+  {
+   "id": "cc3b3b53-13c4-4131-98da-60041a0ab3f0",
+   "code": "33C318",
+   "tipo": "Cemento",
+   "color": "Tortora"
+  },
+  {
+   "id": "3e86eb63-45c3-47c5-9d23-e880c9f9498a",
+   "code": "33C319",
+   "tipo": "Cemento",
+   "color": "Tortora"
+  },
+  {
+   "id": "6bb0d491-58a0-4982-a9a0-f3e594a2817b",
+   "code": "33C320",
+   "tipo": "Cemento",
+   "color": "Tortora"
+  },
+  {
+   "id": "8e95fd1c-f9ff-4978-a5f9-f064f9c66fcf",
+   "code": "33M160",
+   "tipo": "Marmo",
+   "color": "Grigio"
+  },
+  {
+   "id": "047abdfa-d76b-49a7-9b1a-bb858426a2f3",
+   "code": "33P309",
+   "tipo": "Pietra",
+   "color": "Beige"
+  },
+  {
+   "id": "7dba128b-1692-4eb0-81aa-cc08d5d1fc62",
+   "code": "33P508",
+   "tipo": "Pietra",
+   "color": "Beige"
+  },
+  {
+   "id": "92448be7-dd9c-4675-a456-4f0d80aa7316",
+   "code": "33P522",
+   "tipo": "Pietra",
+   "color": "Beige"
+  },
+  {
+   "id": "409d9159-8da2-414f-baa4-8745b8c5dc08",
+   "code": "33P524",
+   "tipo": "Pietra",
+   "color": "Beige"
+  },
+  {
+   "id": "b8cfa029-1af6-46f2-b942-5fdecb356ff6",
+   "code": "33P528",
+   "tipo": "Pietra",
+   "color": "Cotto"
+  },
+  {
+   "id": "748b14a6-1f6e-4f2e-bd17-d1bb62ad32da",
+   "code": "33P545",
+   "tipo": "Pietra",
+   "color": "Avorio"
+  },
+  {
+   "id": "ffca8644-ee84-446f-8ec4-2202f50dcf4a",
+   "code": "33P557",
+   "tipo": "Pietra",
+   "color": "Cotto"
+  },
+  {
+   "id": "72ff3e23-d8a5-4310-b5bf-c962398114b8",
+   "code": "33P560",
+   "tipo": "Pietra",
+   "color": "Beige"
+  },
+  {
+   "id": "d019a07d-50bb-4dcf-af69-fdc8e3db65ff",
+   "code": "33P562",
+   "tipo": "Pietra",
+   "color": "Cotto"
+  },
+  {
+   "id": "a817054e-db66-425d-bf57-32fa4cc853b2",
+   "code": "33P594",
+   "tipo": "Pietra",
+   "color": "Cotto"
+  },
+  {
+   "id": "f716bd02-44b5-49d3-8892-b7f788df1417",
+   "code": "33P600",
+   "tipo": "Pietra",
+   "color": "Grigio"
+  },
+  {
+   "id": "a287cd19-43d5-4600-bba5-8134f0f72807",
+   "code": "33P601",
+   "tipo": "Pietra",
+   "color": "Bianco"
+  },
+  {
+   "id": "3f36bbdf-6094-402e-93ed-ba0fa99209b2",
+   "code": "33P602",
+   "tipo": "Pietra",
+   "color": "Grigio"
+  }
+ ]
+}

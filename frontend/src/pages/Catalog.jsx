@@ -1,15 +1,40 @@
 import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { STORE_COLLECTIONS } from "@/lib/collections";
-import { useProducts } from "@/hooks/useProducts";
+import { STORE_COLLECTIONS, collectionLabel } from "@/lib/collections";
+import { useProducts, useProductFilters } from "@/hooks/useProducts";
 import { ProductCard } from "@/components/shop/ProductCard";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
-const FINISHES = ["all", "Matt", "Lucido", "Naturale", "Strutturato", "Antiscivolo R11"];
+const FINISHES = ["Matt", "Lucido"];
+const SORTS = [
+  ["name", "Nome A-Z"],
+  ["price_asc", "Prezzo crescente"],
+  ["price_desc", "Prezzo decrescente"],
+];
+const SORT_KEYS = SORTS.map(([k]) => k);
+
+function FilterSelect({ id, label, testId, value, options, onChange, allLabel = "Tutti" }) {
+  return (
+    <div>
+      <label htmlFor={id} className="eyebrow block mb-2">{label}</label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} data-testid={testId} className="bg-white border-[#E2DDD5]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="bg-white">
+          <SelectItem value="all">{allLabel}</SelectItem>
+          {options.map(([v, l]) => (
+            <SelectItem key={v} value={v}>{l}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 export default function Catalog() {
   usePageTitle("Prodotti");
@@ -19,20 +44,32 @@ export default function Catalog() {
   // Collezioni non più mostrate (vecchi link) ricadono su "Tutte".
   const rawCollection = params.get("collection") || "all";
   const collection = collections.includes(rawCollection) ? rawCollection : "all";
-  const finish = params.get("finish") || "all";
-  const sort = params.get("sort") || "featured";
+  const rawFinish = params.get("finish") || "all";
+  const finish = FINISHES.includes(rawFinish) ? rawFinish : "all";
+  // "In evidenza" non c'è più: vecchi link e valori sconosciuti = Nome A-Z.
+  const rawSort = params.get("sort") || "name";
+  const sort = SORT_KEYS.includes(rawSort) ? rawSort : "name";
+  const tipo = params.get("tipo") || "all";
+  const color = params.get("color") || "all";
   const search = (params.get("search") || "").trim();
+
+  const filtersQuery = useProductFilters(collection);
+  const tipi = filtersQuery.data?.tipi ?? [];
+  const colors = filtersQuery.data?.colors ?? [];
+  // Il valore scelto resta nel menu anche se nella collezione non c'è (mostra 0 prodotti).
+  const tipoOptions = (tipo !== "all" && !tipi.includes(tipo) ? [...tipi, tipo] : tipi).map((t) => [t, t]);
+  const colorOptions = (color !== "all" && !colors.includes(color) ? [...colors, color] : colors).map((c) => [c, c]);
 
   const [term, setTerm] = useState(search);
   useEffect(() => { setTerm(search); }, [search]);
 
-  const productsQuery = useProducts({ collection, finish, sort, search });
+  const productsQuery = useProducts({ collection, tipo, color, finish, sort, search });
   const products = productsQuery.data ?? [];
   const loading = productsQuery.isLoading;
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params);
-    if (value && value !== "all") next.set(key, value);
+    if (value && value !== "all" && !(key === "sort" && value === "name")) next.set(key, value);
     else next.delete(key);
     if (key === "collection" && rawCollection !== collection && (!value || value === "all")) next.delete("collection");
     setParams(next);
@@ -58,14 +95,14 @@ export default function Catalog() {
       <div className="mb-10">
         <p className="eyebrow text-[#C05A3E] mb-2">Negozio</p>
         <h1 className="font-serif-display text-4xl lg:text-5xl font-light">
-          {collection !== "all" ? collection : "Tutte le collezioni"}
+          {collection !== "all" ? collectionLabel(collection) : "Tutte le collezioni"}
         </h1>
         {search && <p data-testid="search-summary" className="text-sm text-[#78716C] mt-2">Risultati per "{search}"</p>}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Filters */}
-        <aside className="lg:w-56 shrink-0 space-y-6">
+        <aside data-testid="catalog-filters" className="lg:w-56 shrink-0 space-y-6 lg:sticky lg:top-28 lg:self-start">
           <form onSubmit={submitSearch}>
             <label htmlFor="catalog-search" className="eyebrow block mb-2">Cerca</label>
             <div className="relative flex items-center">
@@ -104,24 +141,23 @@ export default function Catalog() {
               <SelectContent className="bg-white">
                 <SelectItem value="all">Tutte</SelectItem>
                 {collections.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                  <SelectItem key={c} value={c}>{collectionLabel(c)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <label htmlFor="catalog-finitura" className="eyebrow block mb-2">Finitura</label>
-            <Select value={finish} onValueChange={(v) => setParam("finish", v)}>
-              <SelectTrigger id="catalog-finitura" data-testid="filter-finish-select" className="bg-white border-[#E2DDD5]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {FINISHES.map((f) => (
-                  <SelectItem key={f} value={f}>{f === "all" ? "Tutte" : f}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <FilterSelect
+            id="catalog-tipo" label="Tipo" testId="filter-tipo-select"
+            value={tipo} options={tipoOptions} onChange={(v) => setParam("tipo", v)}
+          />
+          <FilterSelect
+            id="catalog-colore" label="Colore" testId="filter-color-select"
+            value={color} options={colorOptions} onChange={(v) => setParam("color", v)}
+          />
+          <FilterSelect
+            id="catalog-finitura" label="Finitura" testId="filter-finish-select" allLabel="Tutte"
+            value={finish} options={FINISHES.map((f) => [f, f])} onChange={(v) => setParam("finish", v)}
+          />
           <div>
             <label htmlFor="catalog-ordina-per" className="eyebrow block mb-2">Ordina per</label>
             <Select value={sort} onValueChange={(v) => setParam("sort", v)}>
@@ -129,10 +165,9 @@ export default function Catalog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="featured">In evidenza</SelectItem>
-                <SelectItem value="price_asc">Prezzo crescente</SelectItem>
-                <SelectItem value="price_desc">Prezzo decrescente</SelectItem>
-                <SelectItem value="name">Nome A-Z</SelectItem>
+                {SORTS.map(([k, l]) => (
+                  <SelectItem key={k} value={k}>{l}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -157,15 +192,15 @@ export default function Catalog() {
               </button>
             </div>
           ) : loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="aspect-[4/5] bg-[#F1EEE8] animate-pulse" />
+            <div className="grid grid-cols-1 gap-8">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-[140px] sm:h-[220px] bg-[#F1EEE8] animate-pulse" />
               ))}
             </div>
           ) : products.length === 0 ? (
             <div data-testid="catalog-empty" className="text-center py-24 text-[#78716C]">
               <p>Nessun prodotto trovato{search ? ` per "${search}"` : ""}.</p>
-              {(search || collection !== "all" || finish !== "all") && (
+              {(search || collection !== "all" || tipo !== "all" || color !== "all" || finish !== "all") && (
                 <button
                   onClick={() => setParams(new URLSearchParams())}
                   className="mt-4 text-[#C05A3E] font-medium ci-link-underline"
@@ -175,7 +210,7 @@ export default function Catalog() {
               )}
             </div>
           ) : (
-            <div data-testid="product-catalog-grid" className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            <div data-testid="product-catalog-grid" className="grid grid-cols-1 gap-8 lg:gap-10">
               {products.map((p, i) => (
                 <ProductCard key={p.id} product={p} index={i} />
               ))}

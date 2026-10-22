@@ -14,10 +14,17 @@ import {
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { paymentLabel, paymentOk } from "@/lib/payment";
 
-const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "cancelled", "refunded"];
+const STATUS_OPTS = ["pending", "processing", "shipped", "delivered", "invoiced", "cancelled", "refunded"];
 const STATUS_LABEL = {
   pending: "In attesa", processing: "In lavorazione", shipped: "Spedito",
-  delivered: "Consegnato", cancelled: "Annullato", refunded: "Rimborsato",
+  delivered: "Consegnato", invoiced: "Fatturato", cancelled: "Annullato", refunded: "Rimborsato",
+};
+/** Messaggio dopo il cambio di stato: per "Fatturato" dice se l'email con il PDF è partita. */
+const statusToast = (status, order) => {
+  if (status !== "invoiced") return toast.success("Stato aggiornato");
+  const r = order?.invoice_email;
+  if (r && !r.ok) return toast.error(`Stato aggiornato, ma ${r.error || "email non inviata"}`);
+  return toast.success("Stato aggiornato · email con il PDF inviata al cliente");
 };
 
 const SAMPLE_STATUS_OPTS = ["requested", "preparing", "shipped", "delivered"];
@@ -34,8 +41,24 @@ const QUOTE_STATUS_LABEL = {
 
 const EMPTY_PRODUCT = {
   name: "", collection: "SMUSSO", description: "", price: "", format: "", finish: "Matt",
-  color: "", usage: "Battiscopa", weight_kg: "", coverage_sqm: "", stock: 100, image: "", image2: "", image3: "", featured: false,
+  tipo: "", color: "", usage: "Battiscopa", weight_kg: "", coverage_sqm: "", stock: 100, image: "", image2: "", image3: "",
 };
+
+// Valori proposti nei menu (stesso ordine dei filtri del negozio).
+const PRODUCT_FINISHES = ["Matt", "Lucido"];
+const PRODUCT_TIPI = ["Pietra", "Legno", "Marmo", "Tinta unita", "Cemento"];
+const PRODUCT_COLORS = ["Bianco", "Avorio", "Beige", "Tortora", "Grigio", "Antracite", "Nero", "Marrone", "Cotto", "Rosso", "Verde", "Blu"];
+
+/** Menu a tendina semplice: un valore già salvato fuori elenco resta visibile e selezionato. */
+function OptionSelect({ label, value, options, onChange, className, testId }) {
+  const opts = value && !options.includes(value) ? [...options, value] : options;
+  return (
+    <select aria-label={label} title={label} className={className} value={value || ""} onChange={onChange} data-testid={testId}>
+      <option value="">{label}: —</option>
+      {opts.map((o) => (<option key={o} value={o}>{label}: {o}</option>))}
+    </select>
+  );
+}
 
 export default function Admin() {
   usePageTitle("Pannello Admin");
@@ -134,7 +157,7 @@ export default function Admin() {
 
   const saveProduct = async (e) => {
     e.preventDefault();
-    const { image2, image3, ...rest } = form;
+    const { image2, image3, featured: _featured, ...rest } = form; // "featured" non si gestisce più dal pannello
     const payload = {
       ...rest,
       price: parseFloat(form.price),
@@ -162,8 +185,12 @@ export default function Admin() {
   };
 
   const updateOrderStatus = async (order, status) => {
-    await api.put(`/admin/orders/${order.id}/status`, { status, tracking: order.tracking || "" });
-    toast.success("Stato aggiornato");
+    try {
+      const { data } = await api.put(`/admin/orders/${order.id}/status`, { status, tracking: order.tracking || "" });
+      statusToast(status, data);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
     loadAll();
   };
   const updateTracking = async (order, tracking) => {
@@ -527,7 +554,9 @@ export default function Admin() {
                     <Select value={o.status} onValueChange={(v) => updateOrderStatus(o, v)}>
                       <SelectTrigger aria-label="Stato ordine" data-testid={`order-status-${o.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white">
-                        {STATUS_OPTS.map((s) => (<SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>))}
+                        {STATUS_OPTS.map((s) => (s === "invoiced" && !o.invoice && o.status !== "invoiced"
+                          ? <SelectItem key={s} value={s} disabled>Fatturato (allega prima il PDF)</SelectItem>
+                          : <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </td>
@@ -986,8 +1015,9 @@ export default function Admin() {
               <input aria-label="Nome" className={inputCls + " col-span-2"} placeholder="Nome" required value={form.name} onChange={setF("name")} data-testid="pf-name" />
               <input aria-label="Collezione" className={inputCls} placeholder="Collezione" required value={form.collection} onChange={setF("collection")} data-testid="pf-collection" />
               <input aria-label="Formato" className={inputCls} placeholder="Formato" value={form.format} onChange={setF("format")} data-testid="pf-format" />
-              <input aria-label="Finitura" className={inputCls} placeholder="Finitura" value={form.finish} onChange={setF("finish")} />
-              <input aria-label="Colore" className={inputCls} placeholder="Colore" value={form.color} onChange={setF("color")} />
+              <OptionSelect label="Finitura" className={inputCls} value={form.finish} options={PRODUCT_FINISHES} onChange={setF("finish")} testId="pf-finish" />
+              <OptionSelect label="Tipo" className={inputCls} value={form.tipo} options={PRODUCT_TIPI} onChange={setF("tipo")} testId="pf-tipo" />
+              <OptionSelect label="Colore" className={inputCls} value={form.color} options={PRODUCT_COLORS} onChange={setF("color")} testId="pf-color" />
               <input aria-label="Utilizzo" className={inputCls} placeholder="Utilizzo" value={form.usage} onChange={setF("usage")} />
               <input aria-label="Prezzo €" className={inputCls} type="number" step="0.01" placeholder="Prezzo €" required value={form.price} onChange={setF("price")} data-testid="pf-price" />
               <input aria-label="Peso kg" className={inputCls} type="number" step="0.01" placeholder="Peso kg" value={form.weight_kg} onChange={setF("weight_kg")} data-testid="pf-weight" />
@@ -997,10 +1027,6 @@ export default function Admin() {
               <input aria-label="URL immagine 2 (opzionale)" className={inputCls + " col-span-2"} placeholder="URL immagine 2 (opzionale)" value={form.image2} onChange={setF("image2")} data-testid="pf-image2" />
               <input aria-label="URL immagine 3 (opzionale)" className={inputCls + " col-span-2"} placeholder="URL immagine 3 (opzionale)" value={form.image3} onChange={setF("image3")} data-testid="pf-image3" />
               <textarea aria-label="Descrizione" className={inputCls + " col-span-2"} rows={3} placeholder="Descrizione" value={form.description} onChange={setF("description")} />
-              <label className="col-span-2 flex items-center gap-2 text-sm">
-                <input type="checkbox" aria-label="In evidenza in homepage" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} className="accent-[#C05A3E]" />
-                In evidenza in homepage
-              </label>
             </div>
             <button type="submit" data-testid="pf-save" className="w-full bg-[#C05A3E] text-white py-3 text-sm font-semibold hover:bg-[#A64B32] transition-colors mt-5">
               Salva prodotto

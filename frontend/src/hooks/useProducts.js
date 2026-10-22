@@ -20,3 +20,17 @@ export function useProducts(filters) {
     staleTime: 30_000,
   });
 }
+
+/** Tipi e colori davvero presenti (nella collezione scelta), per i menu dei filtri. */
+export function useProductFilters(collection) {
+  const params = collection && collection !== "all" ? { collection } : {};
+  return useQuery({
+    queryKey: ["product-filters", params],
+    queryFn: async () => {
+      const { data } = await api.get("/products/filters", { params });
+      return { tipi: data?.tipi || [], colors: data?.colors || [] };
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
+}
