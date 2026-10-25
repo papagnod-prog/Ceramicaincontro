@@ -19,7 +19,7 @@ export default function Home() {
         <img src={HERO} alt="Ceramica Incontro" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
         <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
-          <p className="eyebrow text-[#E7C9BE] mb-5 ci-fade-up">fittile_ · dal 1976</p>
+          <p className="eyebrow text-[#E7C9BE] mb-5 ci-fade-up">since 1976</p>
           <h1 className="font-serif-display font-light text-white text-5xl sm:text-6xl lg:text-7xl leading-[1.05] max-w-2xl ci-fade-up" style={{ animationDelay: "80ms" }}>
             L'innovazione<br />del battiscopa.
           </h1>

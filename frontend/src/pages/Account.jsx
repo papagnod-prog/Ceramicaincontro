@@ -86,7 +86,7 @@ export default function Account() {
               <div className="space-y-1 text-sm">
                 {o.items.map((it, idx) => (
                   <div key={idx} className="flex justify-between text-[#57534E]">
-                    <span>{it.name} × {it.quantity}</span>
+                    <span>{it.name} — {it.quantity} conf.</span>
                     <span>{eur(it.price * it.quantity)}</span>
                   </div>
                 ))}

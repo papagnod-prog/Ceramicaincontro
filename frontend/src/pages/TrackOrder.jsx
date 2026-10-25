@@ -86,7 +86,7 @@ export default function TrackOrder() {
         <div className="space-y-2 mb-4">
           {(order.items || []).map((it, i) => (
             <div key={i} className="flex justify-between text-sm text-[#57534E]">
-              <span>{it.name} &times; {it.quantity}</span>
+              <span>{it.name} &mdash; {it.quantity} conf.</span>
             </div>
           ))}
         </div>

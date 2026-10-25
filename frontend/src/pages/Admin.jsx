@@ -66,7 +66,8 @@ export default function Admin() {
   const navigate = useNavigate();
   // ?chat=<id> (link nell'email di richiesta di assistenza) apre direttamente la chat di Glaze.
   const [linkedChat] = useState(() => new URLSearchParams(window.location.search).get("chat"));
-  const [tab, setTab] = useState(linkedChat ? "chats" : "dashboard");
+  const [tab, setTab] = useState(() => (linkedChat ? "chats"
+    : new URLSearchParams(window.location.search).get("tab") === "quotes" ? "quotes" : "dashboard"));
   const [stats, setStats] = useState(null);
   const [aiUse, setAiUse] = useState(null);
   const [products, setProducts] = useState([]);
@@ -648,18 +649,23 @@ export default function Admin() {
             </thead>
             <tbody>
               {quotes.map((q) => (
-                <tr key={q.id} className="border-t border-[#E2DDD5]">
+                <tr key={q.id} data-testid={`quote-row-${q.id}`}
+                  className="border-t border-[#E2DDD5] cursor-pointer hover:bg-[#F8F6F2]"
+                  onClick={(e) => {
+                    if (e.target.closest?.("input, button, select, [role=option], [role=listbox], [role=combobox]")) return;
+                    navigate(`/admin/preventivi/${q.id}`);
+                  }}>
                   <td className="px-4 py-3">
                     <div className="font-medium">{q.request_number}</div>
                     <div className="text-xs text-[#78716C]">{new Date(q.created_at).toLocaleDateString("it-IT")}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div>{q.customer?.name}{q.customer?.company ? ` · ${q.customer.company}` : ""}</div>
-                    <div className="text-xs text-[#78716C]">{q.customer?.email}</div>
-                    <div className="text-xs text-[#78716C]">{q.customer?.profession}</div>
+                    <div>{q.name}{q.company ? ` · ${q.company}` : ""}</div>
+                    <div className="text-xs text-[#78716C]">{q.email}</div>
+                    <div className="text-xs text-[#78716C]">{q.profession}</div>
                   </td>
                   <td className="px-4 py-3 text-[#78716C]">{q.project_type}</td>
-                  <td className="px-4 py-3 text-[#78716C]">{q.sqm ? `${q.sqm} m²` : "-"}</td>
+                  <td className="px-4 py-3 text-[#78716C]">{q.estimated_sqm ? `${q.estimated_sqm} m²` : "-"}</td>
                   <td className="px-4 py-3 min-w-[170px]">
                     <Select value={q.status} onValueChange={(v) => updateQuoteStatus(q, v)}>
                       <SelectTrigger aria-label="Stato preventivo" data-testid={`quote-status-${q.id}`} className="h-9 bg-white border-[#E2DDD5]"><SelectValue /></SelectTrigger>

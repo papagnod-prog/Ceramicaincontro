@@ -18,6 +18,7 @@ import Checkout from "@/pages/Checkout";
 import { PaymentSuccess, PaymentCancel } from "@/pages/PaymentStatus";
 import PaymentConfirmation from "@/pages/PaymentConfirmation";
 import Account from "@/pages/Account";
+import AdminQuoteDetail from "@/pages/AdminQuoteDetail";
 import Admin from "@/pages/Admin";
 import Samples from "@/pages/Samples";
 import QuoteRequest from "@/pages/QuoteRequest";
@@ -57,6 +58,7 @@ function Shell() {
           <Route path="/account" element={<Account />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/ordini/:orderId" element={<AdminOrderDetail />} />
+          <Route path="/admin/preventivi/:quoteId" element={<AdminQuoteDetail />} />
           <Route path="/campioni" element={<Samples />} />
           <Route path="/preventivo-progetto" element={<QuoteRequest />} />
           <Route path="/ordine/:orderNumber" element={<TrackOrder />} />

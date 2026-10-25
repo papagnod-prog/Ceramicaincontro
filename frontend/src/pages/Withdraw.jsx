@@ -74,7 +74,7 @@ export default function Withdraw() {
         </p>
         <div className="border border-[#E2DDD5] bg-white p-5 mb-6 text-sm text-[#57534E]">
           <ul className="list-disc pl-5 mb-3">
-            {done.items.map((it, i) => (<li key={i}>{it.name} &times; {it.quantity}</li>))}
+            {done.items.map((it, i) => (<li key={i}>{it.name} &mdash; {it.quantity} conf.</li>))}
           </ul>
           {done.receipt_sent ? (
             <p>La ricevuta con questi dati è stata inviata a <strong>{done.email}</strong>. Conservala.</p>
@@ -158,7 +158,7 @@ export default function Withdraw() {
                       className="border border-[#E2DDD5] bg-white px-2 py-1 text-sm text-[#1C1917]">
                       {Array.from({ length: it.quantity + 1 }, (_, n) => (<option key={n} value={n}>{n}</option>))}
                     </select>
-                    <span>su {it.quantity}</span>
+                    <span>su {it.quantity} conf.</span>
                   </label>
                 </div>
               );
@@ -185,7 +185,7 @@ export default function Withdraw() {
             <p><span className="text-[#78716C]">Ordine:</span> {order.order_number} del {new Date(order.created_at).toLocaleDateString("it-IT")}</p>
             <p className="text-[#78716C] pt-2">Prodotti per cui recedi:</p>
             <ul className="list-disc pl-5">
-              {chosen.map((it) => (<li key={it.index}>{it.name} &times; {sel[it.index]}</li>))}
+              {chosen.map((it) => (<li key={it.index}>{it.name} &mdash; {sel[it.index]} conf.</li>))}
             </ul>
             {note.trim() && <p className="pt-2"><span className="text-[#78716C]">Nota:</span> {note.trim()}</p>}
           </div>

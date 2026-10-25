@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api, { setToken } from "@/lib/api";
+import api, { setToken, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AuthCallback() {
@@ -30,7 +30,7 @@ export default function AuthCallback() {
         window.history.replaceState(null, "", "/account");
         navigate("/account", { state: { user: data.user } });
       })
-      .catch(() => navigate("/login"));
+      .catch((err) => navigate("/login", { state: { error: formatApiErrorDetail(err.response?.data?.detail) || "Accesso con Google non riuscito." } }));
   }, [location, navigate, setUser]);
 
   return (

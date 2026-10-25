@@ -47,7 +47,7 @@ export const Header = () => {
               alt="Ceramica Incontro"
               className="h-9 sm:h-11 w-auto object-contain"
             />
-            <span className="eyebrow text-[0.6rem] mt-1 text-[#C05A3E]">fittile_ · dal 1976</span>
+            <span className="eyebrow text-[0.6rem] mt-1 text-[#C05A3E]">since 1976</span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-5 xl:gap-8 whitespace-nowrap">

@@ -12,7 +12,7 @@ export const Footer = () => (
             Dal 1976 specializzati nell'esclusiva produzione di battiscopa e rivestimenti
             in ceramica. L'innovazione del battiscopa, made in Corato.
           </p>
-          <p className="eyebrow text-[#C05A3E] mt-4">fittile_</p>
+          <p className="eyebrow text-[#C05A3E] mt-4">since 1976</p>
         </div>
         <div>
           <h4 className="eyebrow mb-4 text-[#78716C]">Collezioni</h4>
@@ -43,6 +43,9 @@ export const Footer = () => (
             </li>
             <li>
               <Link to="/account" className="hover:text-white transition-colors">Il mio account</Link>
+            </li>
+            <li>
+              <Link to="/login#trova-ordine" data-testid="footer-find-order-link" className="hover:text-white transition-colors">Trova il tuo ordine</Link>
             </li>
           </ul>
         </div>

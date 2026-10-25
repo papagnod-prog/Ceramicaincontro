@@ -91,7 +91,7 @@ export default function Checkout() {
   const contactMailto = () => {
     const email = quote.contact_email || "info@ceramicaincontro.it";
     const subject = "Richiesta preventivo spedizione — Ceramica Incontro";
-    const itemsList = items.map((i) => `- ${i.name} (Qtà ${i.quantity})`).join("\n");
+    const itemsList = items.map((i) => `- ${i.name} — ${i.quantity} conf.`).join("\n");
     const body =
       `Buongiorno,\n\nvorrei un preventivo di spedizione per il mio ordine, ` +
       `non essendo disponibile una tariffa automatica per la mia regione (${form.region || "—"}).\n\n` +
@@ -349,7 +349,7 @@ export default function Checkout() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="truncate font-medium">{i.name}</p>
-                    <p className="text-xs text-[#78716C]">Qtà {i.quantity}</p>
+                    <p className="text-xs text-[#78716C]">{i.quantity} conf.</p>
                   </div>
                   <span className="font-medium">{eur(i.price * i.quantity)}</span>
                 </div>

@@ -277,7 +277,7 @@ def _brand_wrap(inner: str) -> str:
         'style="background:#ffffff;border:1px solid #E2DDD5">'
         '<tr><td style="background:#1C1917;padding:24px 32px">'
         '<div style="color:#F8F6F2;font-size:22px;letter-spacing:0.5px">Ceramica Incontro</div>'
-        '<div style="color:#C05A3E;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:4px">fittile_ · dal 1976</div>'
+        '<div style="color:#C05A3E;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:4px">since 1976</div>'
         '</td></tr>'
         f'<tr><td style="padding:32px">{inner}</td></tr>'
         '<tr><td style="padding:20px 32px;border-top:1px solid #E2DDD5;color:#78716C;font-size:12px">'
@@ -312,7 +312,7 @@ async def _order_email_html(order: dict) -> str:
     rows = ""
     for it in order["items"]:
         rows += (f'<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#1C1917">'
-                 f'{escape(str(it["name"]))} &times; {it["quantity"]}</td>'
+                 f'{escape(str(it["name"]))} &mdash; {it["quantity"]} conf.</td>'
                  f'<td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;color:#1C1917">'
                  f'&euro; {it["price"] * it["quantity"]:.2f}</td></tr>')
     addr = order.get("shipping_address", {})
@@ -565,7 +565,7 @@ def _admin_order_email_html(order: dict, kind: str = "new_transfer", extra_title
     if order.get("tracking"):
         dest += row("Tracking", order["tracking"])
 
-    items = "".join(row(f"{it.get('name', '')} × {it.get('quantity', 0)}",
+    items = "".join(row(f"{it.get('name', '')} — {it.get('quantity', 0)} conf.",
                         f"€ {float(it.get('price', 0)) * int(it.get('quantity', 0)):.2f}")
                     for it in order.get("items", []))
     items += row("Subtotale (IVA esclusa)", f"€ {order.get('subtotal', 0):.2f}")
@@ -983,6 +983,7 @@ async def resolve_user(request: Request) -> Optional[dict]:
                 if payload.get("type") == "access":
                     user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
                     if user:
+                        request.state.auth_via = "password"
                         return user
             except jwt.PyJWTError:
                 pass
@@ -999,7 +1000,9 @@ async def resolve_user(request: Request) -> Optional[dict]:
                     expires_at = expires_at.replace(tzinfo=timezone.utc)
                 if expires_at > now_utc():
                     user = await db.users.find_one({"id": sess["user_id"]}, {"_id": 0})
-                    if user:
+                    # Gli amministratori entrano solo con email e password: una sessione Google non vale.
+                    if user and user.get("role") != "admin":
+                        request.state.auth_via = "google"
                         return user
     return None
 
@@ -1011,10 +1014,15 @@ async def require_user(request: Request) -> dict:
     return user
 
 
+ADMIN_PASSWORD_ONLY_MSG = "Gli amministratori accedono solo con email e password."
+
+
 async def require_admin(request: Request) -> dict:
     user = await require_user(request)
     if user.get("role") != "admin":
         raise HTTPException(403, "Accesso riservato agli amministratori")
+    if getattr(request.state, "auth_via", "") != "password":
+        raise HTTPException(403, ADMIN_PASSWORD_ONLY_MSG)
     return user
 
 
@@ -1068,14 +1076,18 @@ async def google_session(data: SessionInput, response: Response):
     info = r.json()
     email = info["email"].lower()
     user = await db.users.find_one({"email": email})
+    if user and user.get("role") == "admin":
+        raise HTTPException(403, ADMIN_PASSWORD_ONLY_MSG)
     if not user:
         user = {"id": str(uuid.uuid4()), "email": email, "name": info.get("name", ""),
                 "password_hash": "", "role": "customer", "picture": info.get("picture", ""),
-                "auth_provider": "google", "created_at": now_utc().isoformat()}
+                "auth_provider": "google", "email_verified": True, "created_at": now_utc().isoformat()}
         await db.users.insert_one(user)
     else:
+        # Google conferma che l'email è di chi accede: da qui l'account vede anche gli ordini fatti senza account.
         await db.users.update_one({"email": email},
-                                  {"$set": {"picture": info.get("picture", user.get("picture", ""))}})
+                                  {"$set": {"picture": info.get("picture", user.get("picture", "")),
+                                            "email_verified": True}})
     session_token = info["session_token"]
     await db.user_sessions.insert_one({
         "user_id": user["id"], "session_token": session_token,
@@ -1742,7 +1754,11 @@ _CUSTOMER_HIDDEN = {"invoice": 0, "invoice_email": 0}  # fattura/ricevuta: solo 
 
 @api_router.get("/orders")
 async def my_orders(user: dict = Depends(require_user)):
-    cursor = db.orders.find({"user_id": user["id"]}, {"_id": 0, **_CUSTOMER_HIDDEN}).sort("created_at", -1)
+    q = {"user_id": user["id"]}
+    if user.get("email_verified"):
+        q = {"$or": [q, {"user_id": None,
+                         "customer.email": {"$regex": f"^{re.escape(user['email'])}$", "$options": "i"}}]}
+    cursor = db.orders.find(q, {"_id": 0, **_CUSTOMER_HIDDEN}).sort("created_at", -1)
     return await cursor.to_list(200)
 
 
@@ -1755,6 +1771,23 @@ async def get_order(order_id: str, user: dict = Depends(require_user)):
         for k in _CUSTOMER_HIDDEN:
             o.pop(k, None)
     return o
+
+
+class OrderLookupInput(BaseModel):
+    order_number: str = Field(min_length=3, max_length=40)
+    email: EmailStr
+
+
+@api_router.post("/orders/lookup")
+async def order_lookup(data: OrderLookupInput, request: Request):
+    """Trova il tuo ordine: il cliente indica numero ordine ed email usata; se coincidono
+    restituisce il numero per aprire la pagina Stato ordine. Tentativi limitati per IP."""
+    await _withdrawal_rate_limit(request)
+    number = data.order_number.strip().upper()
+    o = await db.orders.find_one({"order_number": number}, {"_id": 0, "order_number": 1, "customer": 1})
+    if not o or str((o.get("customer") or {}).get("email", "")).strip().lower() != data.email.strip().lower():
+        raise HTTPException(404, "Ordine non trovato o email non corrispondente. Controlla i dati e riprova.")
+    return {"order_number": o["order_number"]}
 
 
 @api_router.get("/track/{order_number}")
@@ -2009,7 +2042,7 @@ async def _withdrawal_order(data: WithdrawalLookupInput) -> dict:
 def _withdrawal_receipt_html(order: dict, w: dict) -> str:
     rows = "".join(
         f'<tr><td style="padding:6px 0;color:#1C1917">{escape(str(it["name"]))}</td>'
-        f'<td style="padding:6px 0;text-align:right;color:#1C1917">× {int(it["quantity"])}</td></tr>'
+        f'<td style="padding:6px 0;text-align:right;color:#1C1917">{int(it["quantity"])} conf.</td></tr>'
         for it in w["items"])
     def kv(k, v):
         return (f'<tr><td style="padding:4px 0;color:#78716C">{escape(k)}</td>'
@@ -2111,7 +2144,7 @@ async def create_withdrawal(data: WithdrawalInput, request: Request):
     await _notify_admin_order(
         o, "withdrawal", once=False, request_number=w["request_number"], extra_title="Recesso richiesto",
         extra_rows=[("Numero richiesta", w["request_number"]), ("Ricevuta il", w["received_at_local"])]
-        + [(f"{it['name']}", f"× {it['quantity']} (su {it['ordered_quantity']})") for it in chosen]
+        + [(f"{it['name']}", f"{it['quantity']} conf. (su {it['ordered_quantity']} conf.)") for it in chosen]
         + ([("Nota del cliente", w["note"])] if w["note"] else []),
         warning=warning)
     return {"request_number": w["request_number"], "received_at": w["received_at"],
@@ -2291,6 +2324,14 @@ async def admin_quotes(admin: dict = Depends(require_admin), status: Optional[st
         q["status"] = status
     cursor = db.quote_requests.find(q, {"_id": 0}).sort("created_at", -1)
     return await cursor.to_list(500)
+
+
+@api_router.get("/admin/quotes/{quote_id}")
+async def admin_quote_detail(quote_id: str, admin: dict = Depends(require_admin)):
+    q = await db.quote_requests.find_one({"id": quote_id}, {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Richiesta non trovata")
+    return q
 
 
 @api_router.put("/admin/quotes/{quote_id}/status")
